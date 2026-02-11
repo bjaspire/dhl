@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sprint Report | {{ sprint_name }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0052cc;
+            --primary-light: #4c9aff;
+            --secondary: #0747a6;
+            --bg: #f8f9fc;
+            --card-bg: #ffffff;
+            --text-main: #172b4d;
+            --text-muted: #6b778c;
+            --success: #36b37e;
+            --warning: #ffab00;
+            --error: #ff5630;
+            --border: #ebecf0;
+            --shadow: 0 4px 20px rgba(9, 30, 66, 0.08);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 40px;
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 20px;
+        }
+
+        .header-title h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.02em;
+        }
+
+        .header-meta {
+            text-align: right;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(0, 0, 0, 0.02);
+            transition: transform 0.2s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+        }
+
+        .card-label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            display: block;
+        }
+
+        .card-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: block;
+        }
+
+        .completion-circle {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+
+            background: conic-gradient(var(--success) {
+                        {
+                        completion_rate
+                    }
+                }
+
+                %, var(--border) 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-main);
+            box-shadow: inset 0 0 0 8px white;
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        section h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        section h2::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table th {
+            background-color: #f4f5f7;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tbody tr {
+            background: white;
+        }
+
+        .data-table tbody tr:hover {
+            background: #f9fafb;
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 99px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .badge-success {
+            background: #e3fcef;
+            color: #006644;
+        }
+
+        .badge-info {
+            background: #deebff;
+            color: #0747a6;
+        }
+
+        .badge-warning {
+            background: #fffadc;
+            color: #8a6d3b;
+        }
+
+        .chart-box {
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .chart-box img {
+            width: 100%;
+            height: auto;
+            border-radius: 8px;
+        }
+
+        footer {
+            margin-top: 60px;
+            text-align: center;
+            padding-top: 30px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .role-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #f4f5f7;
+            color: #42526e;
+        }
+
+        .issues-list {
+            font-size: 0.8rem;
+            color: var(--primary);
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <span style="color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">SPRINT REPORT</span>
+                <h1>{{ sprint_name }}</h1>
+            </div>
+            <div class="header-meta">
+                <p>Generated: {{ generated_at }}</p>
+                <div style="display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 5px;">
+                    <div class="completion-circle">{{ completion_rate }}%</div>
+                    <span style="font-size: 0.8rem;">Target Reached</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card">
+                <span class="card-label">Overall Completion</span>
+                <span class="card-value">{{ completion_rate }}%</span>
+                <div style="height: 4px; background: var(--border); border-radius: 2px; margin-top: 10px;">
+                    <div
+                        style="height: 100%; width: {{ completion_rate }}%; background: var(--success); border-radius: 2px;">
+                    </div>
+                </div>
+            </div>
+            <div class="card">
+                <span class="card-label">Goal Hours</span>
+                <span class="card-value">{{ total_estimated_hours }}h</span>
+            </div>
+            <div class="card">
+                <span class="card-label">Worked Hours</span>
+                <span class="card-value">{{ total_worked_hours }}h</span>
+            </div>
+            <div class="card">
+                <span class="card-label">Total Issues</span>
+                <span class="card-value">{{ total_issues }}</span>
+            </div>
+        </div>
+
+        <div class="grid-layout">
+            <section>
+                <h2>Sprint Overview</h2>
+                <table class="data-table">
+                    <tr>
+                        <th>Metric</th>
+                        <th>Details</th>
+                    </tr>
+                    <tr>
+                        <td>Goal</td>
+                        <td style="font-weight: 600;">{{ sprint_goal or 'No goal defined' }}</td>
+                    </tr>
+                    <tr>
+                        <td>Timeframe</td>
+                        <td>{{ start_date }} — {{ end_date }}</td>
+                    </tr>
+                    <tr>
+                        <td>Committed Units</td>
+                        <td>{{ total_issues }} Issues</td>
+                    </tr>
+                    <tr>
+                        <td>Completed Units</td>
+                        <td><span class="badge badge-success">{{ completed_issues }} Done</span></td>
+                    </tr>
+                    <tr>
+                        <td>Carried Over</td>
+                        <td><span class="badge badge-warning">{{ spillover_issues }} Spillover</span></td>
+                    </tr>
+                </table>
+            </section>
+
+            <section>
+                <h2>Quality Insights</h2>
+                <table class="data-table">
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Status</th>
+                    </tr>
+                    <tr>
+                        <td>Bugs Reported</td>
+                        <td><span class="badge badge-info">{{ bugs_reported }} Bugs</span></td>
+                    </tr>
+                    <tr>
+                        <td>Bugs Resolved</td>
+                        <td>{{ bugs_resolved }}</td>
+                    </tr>
+                    <tr>
+                        <td>Blocked Items</td>
+                        <td><span class="badge {{ 'badge-warning' if blocked_issues > 0 else 'badge-success' }}">{{
+                                blocked_issues }} Issues</span></td>
+                    </tr>
+                    <tr>
+                        <td>Critical/High Bugs</td>
+                        <td style="color: {{ 'var(--error)' if high_priority_bugs > 0 else 'inherit' }}">{{
+                            high_priority_bugs }}</td>
+                    </tr>
+                    <tr>
+                        <td>Prod Incidents</td>
+                        <td style="font-weight: 700;">{{ production_incidents }}</td>
+                    </tr>
+                </table>
+            </section>
+        </div>
+
+        <section style="margin-bottom: 40px;">
+            <h2>People Contribution</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Team Member</th>
+                        <th>Role</th>
+                        <th>Path (Keys)</th>
+                        <th>Est (h)</th>
+                        <th>Actual (h)</th>
+                        <th>Var (%)</th>
+                        <th>Engagement</th>
+                        <th>Blockers</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for name, stats in people_metrics.items() %}
+                    <tr>
+                        <td style="font-weight: 700;">{{ name }}</td>
+                        <td><span class="role-tag">{{ stats.role }}</span></td>
+                        <td>
+                            <div class="issues-list">{{ stats.issues_list }}</div>
+                        </td>
+                        <td style="font-weight: 600; color: var(--text-muted);">{{ stats.estimated_hours | round(1) }}h
+                        </td>
+                        <td style="font-weight: 600; color: var(--primary);">{{ stats.hours | round(1) }}h</td>
+                        <td>
+                            {% set variance = (((stats.hours - stats.estimated_hours) / stats.estimated_hours) * 100) if
+                            stats.estimated_hours > 0 else 0 %}
+                            {% if variance > 20 %}
+                            <span class="badge" style="background: #ffebe6; color: #bf2600;">+{{ variance | round(0)
+                                }}%</span>
+                            {% elif variance < -20 %} <span class="badge" style="background: #e3fcef; color: #006644;">
+                                {{ variance | round(0) }}%</span>
+                                {% else %}
+                                <span style="font-size: 0.8rem; color: var(--text-muted);">{{ variance | round(0)
+                                    }}%</span>
+                                {% endif %}
+                        </td>
+                        <td>{{ stats.comments }} comments</td>
+                        <td>
+                            {% if stats.blockers > 0 %}
+                            <span class="badge badge-warning">{{ stats.blockers }} flagged</span>
+                            {% else %}
+                            <span style="color: var(--text-muted); font-size: 0.8rem;">0 report</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot style="background: #f4f5f7; font-weight: 700;">
+                    <tr>
+                        <td colspan="3" style="text-align: right; padding-right: 20px;">Totals:</td>
+                        <td style="color: var(--text-muted);">{{ total_estimated_hours }}h</td>
+                        <td style="color: var(--primary);">{{ total_worked_hours }}h</td>
+                        <td colspan="3"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </section>
+
+        <div class="grid-layout">
+            <section>
+                <h2>Velocity Trend</h2>
+                <div class="chart-box">
+                    <img src="data:image/png;base64,{{ velocity_chart_base64 }}" alt="Velocity Chart">
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 15px;">Showing estimated vs
+                        actual logged effort across recent cycles</p>
+                </div>
+            </section>
+
+            <section>
+                <h2>Scope Variance</h2>
+                <table class="data-table">
+                    <tr>
+                        <th>Change Type</th>
+                        <th>Count</th>
+                        <th>Impact</th>
+                    </tr>
+                    <tr>
+                        <td>Scope Added</td>
+                        <td><span class="badge badge-info">+{{ scope_added }}</span></td>
+                        <td style="font-size: 0.85rem;">Items introduced mid-cycle</td>
+                    </tr>
+                    <tr>
+                        <td>Scope Removed</td>
+                        <td><span class="badge badge-info">{{ removed_issues }}</span></td>
+                        <td style="font-size: 0.85rem;">Items de-prioritized</td>
+                    </tr>
+                    <tr>
+                        <td>Spillover</td>
+                        <td><span class="badge badge-warning">{{ spillover_issues }}</span></td>
+                        <td style="font-size: 0.85rem;">Transfer to next sprint</td>
+                    </tr>
+                </table>
+                <div
+                    style="margin-top: 30px; padding: 20px; background: #ebf2ff; border-radius: 12px; border-left: 4px solid var(--primary);">
+                    <h4 style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 8px;">Delivery Note</h4>
+                    <p style="font-size: 0.85rem; color: var(--secondary);">Effort is calculated based on original
+                        estimates vs logged worklogs. Mid-sprint additions may impact total worked hours.</p>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+                <span>Atlassian Jira Agile™ Integration</span>
+                <span style="opacity: 0.5;">|</span>
+                <span>Automated Reporting Engine v2.1</span>
+            </div>
+            <p style="margin-top: 10px;">&copy; 2026 Olive Media. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+
+</html>
