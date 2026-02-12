@@ -9,6 +9,7 @@ from jira.worklogs import get_issue_worklogs
 from jira.comments import get_issue_comments
 from reports.people_report import aggregate_people_metrics
 from reports.velocity import calculate_velocity, generate_velocity_chart
+from reports.burndown import calculate_burndown, generate_burndown_chart
 from reports.sprint_report import SprintReportGenerator
 
 def load_config(config_path="config/config.yaml"):
@@ -18,7 +19,6 @@ def load_config(config_path="config/config.yaml"):
 def run():
     config = load_config()
     jira_cfg = config["jira"]
-    roles_cfg = config["roles"]
     report_cfg = config["report"]
 
     client = JiraClient(jira_cfg["url"], jira_cfg["email"], jira_cfg["token"])
@@ -45,60 +45,65 @@ def run():
     raw_issues = get_sprint_issues(client, sprint["id"])
     
     # 3. Process Metrics
-    total_issues = len(raw_issues)
+    standard_types = ["Story", "Task", "Bug", "New Feature", "New feature"]
+    
+    # Pre-filter: Issues accurately associated with this sprint
+    active_in_sprint = []
+    for iss in raw_issues:
+        fields = iss.get("fields", {})
+        sf = fields.get("customfield_10006") or fields.get("sprint")
+        in_sprint = False
+        if isinstance(sf, list):
+            for s in sf:
+                if isinstance(s, dict) and s.get("id") == sprint["id"]: in_sprint = True; break
+        elif isinstance(sf, dict) and sf.get("id") == sprint["id"]:
+            in_sprint = True
+        
+        if in_sprint: active_in_sprint.append(iss)
+
+    # The 87 work items: Non-subtasks and Non-Epics
+    work_items = [iss for iss in active_in_sprint if not iss['fields'].get('issuetype', {}).get('subtask') and iss['fields'].get('issuetype', {}).get('name') != 'Epic']
+    
+    total_issues = len(work_items) # Should be 87
     completed_issues = 0
     spillover_issues = 0
     scope_added = 0
-    removed_issues = 0 # Difficult to fetch without full board scan, setting to 0 or logic-based
+    removed_issues = 0
     total_completed_sp = 0
-    total_committed_sp = 0
     
     bugs_reported = 0
     bugs_resolved = 0
     high_priority_bugs = 0
     blocked_issues = 0
-    production_incidents = 0 # Map to specific Issue Type if needed
+    production_incidents = 0
 
     sp_field = jira_cfg.get("story_points_field", "customfield_10016")
     processed_issues = []
 
-    for issue in raw_issues:
+    for issue in work_items:
         fields = issue.get("fields", {})
         status = fields.get("status", {}).get("name")
         issue_type = fields.get("issuetype", {}).get("name")
         priority = fields.get("priority", {}).get("name")
         created_date = parser.parse(fields.get("created"))
         
-        # Story Points (Handle timeoriginalestimate if used)
         sp_raw = fields.get(sp_field) or 0
-        if sp_field == "timeoriginalestimate" and sp_raw > 0:
-            sp = sp_raw / 3600.0 # Convert seconds to hours
-        else:
-            sp = sp_raw
+        sp = sp_raw / 3600.0 if sp_field == "timeoriginalestimate" else sp_raw
             
-        # Estimate will be summed in a clean pass later to avoid double-counting
-        
-        # Completed vs Spillover
-        is_done = status.lower() in ["done", "resolved", "closed", "completed", "dev complete", "in qa"]
+        is_done = status.lower() in ["done", "resolved", "closed", "completed", "dev complete", "in qa", "dev - completed"]
         if is_done:
             completed_issues += 1
             total_completed_sp += sp
         else:
             spillover_issues += 1
             
-        # Scope Added (Created after sprint start OR added to sprint later)
-        is_added = False
         if sprint_start_date and created_date > sprint_start_date:
             scope_added += 1
-            is_added = True
 
-        # Quality Metrics
         if issue_type.lower() == "bug":
             bugs_reported += 1
-            if is_done:
-                bugs_resolved += 1
-            if priority.lower() in ["high", "highest", "critical", "p0", "p1"]:
-                high_priority_bugs += 1
+            if is_done: bugs_resolved += 1
+            if priority.lower() in ["high", "highest", "critical", "p0", "p1"]: high_priority_bugs += 1
         
         if status.lower() in ["blocked", "on hold"]:
             blocked_issues += 1
@@ -106,13 +111,20 @@ def run():
         if "incident" in issue_type.lower():
             production_incidents += 1
 
-        # Extract bulk worklogs and comments from the expanded fields
         issue["worklogs"] = fields.get("worklog", {}).get("worklogs", [])
         issue["comments"] = fields.get("comment", {}).get("comments", [])
-        
         processed_issues.append(issue)
 
     completion_rate = round((completed_issues / total_issues * 100), 2) if total_issues > 0 else 0
+
+    # 4. Status Breakdown
+    status_breakdown = {}
+    for iss in work_items:
+        s = iss["fields"].get("status", {}).get("name")
+        status_breakdown[s] = status_breakdown.get(s, 0) + 1
+    
+    # Sort breakdown by count descending
+    status_breakdown = dict(sorted(status_breakdown.items(), key=lambda x: x[1], reverse=True))
 
     # 4. Velocity Trend (Estimated vs Worked Hours)
     all_sprints = get_sprints(client, board_id, state="closed,active").get("values", [])
@@ -129,17 +141,17 @@ def run():
     recent_sprints = all_sprints[max(0, current_idx): current_idx + lookback]
     recent_sprints.reverse() 
     
+    # Calculate total committed SP for the CURRENT sprint for the summary
+    summary_oe = sum((iss['fields'].get('timeoriginalestimate') or 0) for iss in work_items) / 3600.0
+    total_committed_sp = summary_oe
+
     velocity_data = []
     for s in recent_sprints:
         if str(s["id"]) == str(sprint["id"]):
-            # Use data already calculated
-            actual_worked = sum(p["hours"] for p in people_metrics.values()) if 'people_metrics' in locals() else 0
-            # Note: people_metrics is defined after this loop in original code, so I'll move it up or recalculate.
-            # I will move people_metrics calculation up.
             velocity_data.append({
                 "name": s["name"], 
                 "estimated": round(total_committed_sp, 1),
-                "worked": round(actual_worked, 1)
+                "worked": 0 # Will be updated after people_metrics
             })
         else:
             past_issues = get_sprint_issues(client, s["id"])
@@ -172,48 +184,61 @@ def run():
             })
 
     # Move people_metrics up before chart generation
-    people_metrics = aggregate_people_metrics(processed_issues, roles_cfg, sprint_start_date, sprint_end_date)
-    # Fix the current sprint data in velocity_data after people_metrics is ready
+    # 5. People Metrics
+    # Pass raw_issues so it can detect all assignments/worklogs, 
+    # and sprint_id/dates for precise filtering.
+    people_metrics = aggregate_people_metrics(raw_issues, sprint["id"], sprint_start_date, sprint_end_date)
+    
+    # Update current sprint velocity data
     for v in velocity_data:
         if v["name"] == sprint["name"]:
+            # Recalculate estimated hours for the 86 items ONLY for the summary
+            # We already have work_items list from earlier
+            summary_oe = sum((iss['fields'].get('timeoriginalestimate') or 0) for iss in work_items) / 3600.0
+            v["estimated"] = round(summary_oe, 1)
             v["worked"] = round(sum(p["hours"] for p in people_metrics.values()), 1)
 
-    chart_base64 = generate_velocity_chart(velocity_data, os.path.join(report_cfg["output_dir"], "velocity.png"))
+    chart_base64 = generate_velocity_chart(velocity_data)
 
-    # Recalculate total estimated hours (sum of all unique issue estimates in sprint)
-    total_committed_sp = sum((iss.get("fields", {}).get(sp_field) or 0) for iss in raw_issues)
-    if sp_field == "timeoriginalestimate":
-        total_committed_sp = total_committed_sp / 3600.0
+    # 6. Burndown Chart
+    burndown_data = calculate_burndown(work_items, sprint_start_date, sprint_end_date)
+    burndown_base64 = generate_burndown_chart(burndown_data)
 
-    # 6. Generate Reports
+    total_estimated_hours = sum((iss['fields'].get('timeoriginalestimate') or 0) for iss in work_items) / 3600.0
     total_worked_hours = sum(p["hours"] for p in people_metrics.values())
+
     sprint_metrics = {
         "sprint_name": sprint["name"],
         "sprint_goal": sprint_goal,
         "start_date": sprint_start_date.strftime("%Y-%m-%d") if sprint_start_date else "N/A",
         "end_date": sprint_end_date.strftime("%Y-%m-%d") if sprint_end_date else "N/A",
-        "total_issues": total_issues,
+        "total_issues": total_issues, # 86
         "completed_issues": completed_issues,
         "spillover_issues": spillover_issues,
         "scope_added": scope_added,
         "removed_issues": removed_issues,
         "completion_rate": completion_rate,
-        "total_estimated_hours": round(total_committed_sp, 1),
+        "total_estimated_hours": round(total_estimated_hours, 1),
         "total_worked_hours": round(total_worked_hours, 1),
         "completed_story_points": round(total_completed_sp, 1),
-        "committed_story_points": round(total_committed_sp, 1),
+        "committed_story_points": round(total_estimated_hours, 1), # Same as total_estimated_hours
         "bugs_reported": bugs_reported,
         "bugs_resolved": bugs_resolved,
         "high_priority_bugs": high_priority_bugs,
         "blocked_issues": blocked_issues,
         "production_incidents": production_incidents,
+        "status_breakdown": status_breakdown,
         "velocity_chart_base64": chart_base64,
+        "burndown_chart_base64": burndown_base64,
         "people_metrics": people_metrics,
         "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
-    report_gen = SprintReportGenerator("templates", report_cfg["output_dir"])
     report_slug = sprint["name"].lower().replace(" ", "_").replace("/", "_")
+    sprint_output_dir = os.path.join(report_cfg["output_dir"], report_slug)
+    os.makedirs(sprint_output_dir, exist_ok=True)
+
+    report_gen = SprintReportGenerator("templates", sprint_output_dir)
     html_filename = f"{report_slug}.html"
     excel_filename = f"{report_slug}.xlsx"
 

@@ -208,8 +208,28 @@
         }
 
         .badge-warning {
-            background: #fffadc;
-            color: #8a6d3b;
+            background-color: #fff7e6;
+            color: #d46b08;
+            border: 1px solid #ffd591;
+        }
+
+        .issues-list {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            max-width: 350px;
+            white-space: normal;
+            word-wrap: break-word;
+            margin-top: 5px;
+            line-height: 1.4;
+        }
+
+        .role-tag {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 4px;
+            background: #f4f5f7;
+            color: #42526e;
         }
 
         .chart-box {
@@ -226,6 +246,46 @@
             border-radius: 8px;
         }
 
+        /* Status Breakdown Styles */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border-left: 4px solid var(--primary-light);
+            transition: all 0.2s;
+        }
+
+        .status-item:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transform: translateY(-2px);
+        }
+
+        .status-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .status-count {
+            background: var(--bg);
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            color: var(--primary);
+        }
+
         footer {
             margin-top: 60px;
             text-align: center;
@@ -234,21 +294,6 @@
             color: var(--text-muted);
             font-size: 0.85rem;
             font-weight: 500;
-        }
-
-        .role-tag {
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 2px 8px;
-            border-radius: 4px;
-            background: #f4f5f7;
-            color: #42526e;
-        }
-
-        .issues-list {
-            font-size: 0.8rem;
-            color: var(--primary);
-            font-family: 'Courier New', Courier, monospace;
         }
     </style>
 </head>
@@ -280,11 +325,11 @@
                 </div>
             </div>
             <div class="card">
-                <span class="card-label">Goal Hours</span>
+                <span class="card-label">Est Hours</span>
                 <span class="card-value">{{ total_estimated_hours }}h</span>
             </div>
             <div class="card">
-                <span class="card-label">Worked Hours</span>
+                <span class="card-label">Actual Hours</span>
                 <span class="card-value">{{ total_worked_hours }}h</span>
             </div>
             <div class="card">
@@ -358,12 +403,25 @@
         </div>
 
         <section style="margin-bottom: 40px;">
+            <h2>Status Distribution</h2>
+            <div class="status-grid">
+                {% for status, count in status_breakdown.items() %}
+                <div class="status-item"
+                    style="border-left-color: {{ 'var(--success)' if status.lower() in ['done', 'resolved', 'closed', 'completed'] else 'var(--primary-light)' }}">
+                    <span class="status-name">{{ status }}</span>
+                    <span class="status-count">{{ count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <section style="margin-bottom: 40px;">
             <h2>People Contribution</h2>
             <table class="data-table">
                 <thead>
                     <tr>
                         <th>Team Member</th>
-                        <th>Role</th>
+                        <th>Assigned</th>
                         <th>Path (Keys)</th>
                         <th>Est (h)</th>
                         <th>Actual (h)</th>
@@ -376,7 +434,9 @@
                     {% for name, stats in people_metrics.items() %}
                     <tr>
                         <td style="font-weight: 700;">{{ name }}</td>
-                        <td><span class="role-tag">{{ stats.role }}</span></td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-info" style="font-size: 0.9rem;">{{ stats.assigned_count }}</span>
+                        </td>
                         <td>
                             <div class="issues-list">{{ stats.issues_list }}</div>
                         </td>
@@ -420,6 +480,15 @@
 
         <div class="grid-layout">
             <section>
+                <h2>Sprint Burndown</h2>
+                <div class="chart-box">
+                    <img src="data:image/png;base64,{{ burndown_chart_base64 }}" alt="Burndown Chart">
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 15px;">Remaining work items
+                        over the sprint duration vs ideal pace</p>
+                </div>
+            </section>
+
+            <section>
                 <h2>Velocity Trend</h2>
                 <div class="chart-box">
                     <img src="data:image/png;base64,{{ velocity_chart_base64 }}" alt="Velocity Chart">
@@ -427,48 +496,49 @@
                         actual logged effort across recent cycles</p>
                 </div>
             </section>
-
-            <section>
-                <h2>Scope Variance</h2>
-                <table class="data-table">
-                    <tr>
-                        <th>Change Type</th>
-                        <th>Count</th>
-                        <th>Impact</th>
-                    </tr>
-                    <tr>
-                        <td>Scope Added</td>
-                        <td><span class="badge badge-info">+{{ scope_added }}</span></td>
-                        <td style="font-size: 0.85rem;">Items introduced mid-cycle</td>
-                    </tr>
-                    <tr>
-                        <td>Scope Removed</td>
-                        <td><span class="badge badge-info">{{ removed_issues }}</span></td>
-                        <td style="font-size: 0.85rem;">Items de-prioritized</td>
-                    </tr>
-                    <tr>
-                        <td>Spillover</td>
-                        <td><span class="badge badge-warning">{{ spillover_issues }}</span></td>
-                        <td style="font-size: 0.85rem;">Transfer to next sprint</td>
-                    </tr>
-                </table>
-                <div
-                    style="margin-top: 30px; padding: 20px; background: #ebf2ff; border-radius: 12px; border-left: 4px solid var(--primary);">
-                    <h4 style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 8px;">Delivery Note</h4>
-                    <p style="font-size: 0.85rem; color: var(--secondary);">Effort is calculated based on original
-                        estimates vs logged worklogs. Mid-sprint additions may impact total worked hours.</p>
-                </div>
-            </section>
         </div>
 
-        <footer>
-            <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
-                <span>Atlassian Jira Agile™ Integration</span>
-                <span style="opacity: 0.5;">|</span>
-                <span>Automated Reporting Engine v2.1</span>
+        <section>
+            <h2>Scope Variance</h2>
+            <table class="data-table">
+                <tr>
+                    <th>Change Type</th>
+                    <th>Count</th>
+                    <th>Impact</th>
+                </tr>
+                <tr>
+                    <td>Scope Added</td>
+                    <td><span class="badge badge-info">+{{ scope_added }}</span></td>
+                    <td style="font-size: 0.85rem;">Items introduced mid-cycle</td>
+                </tr>
+                <tr>
+                    <td>Scope Removed</td>
+                    <td><span class="badge badge-info">{{ removed_issues }}</span></td>
+                    <td style="font-size: 0.85rem;">Items de-prioritized</td>
+                </tr>
+                <tr>
+                    <td>Spillover</td>
+                    <td><span class="badge badge-warning">{{ spillover_issues }}</span></td>
+                    <td style="font-size: 0.85rem;">Transfer to next sprint</td>
+                </tr>
+            </table>
+            <div
+                style="margin-top: 30px; padding: 20px; background: #ebf2ff; border-radius: 12px; border-left: 4px solid var(--primary);">
+                <h4 style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 8px;">Delivery Note</h4>
+                <p style="font-size: 0.85rem; color: var(--secondary);">Effort is calculated based on original
+                    estimates vs logged worklogs. Mid-sprint additions may impact total worked hours.</p>
             </div>
-            <p style="margin-top: 10px;">&copy; 2026 Olive Media. All rights reserved.</p>
-        </footer>
+        </section>
+    </div>
+
+    <footer>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+            <span>Atlassian Jira Agile™ Integration</span>
+            <span style="opacity: 0.5;">|</span>
+            <span>Automated Reporting Engine v2.1</span>
+        </div>
+        <p style="margin-top: 10px;">&copy; 2026 Olive Media. All rights reserved.</p>
+    </footer>
     </div>
 </body>
 

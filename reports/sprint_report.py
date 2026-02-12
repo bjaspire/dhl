@@ -29,11 +29,12 @@ class SprintReportGenerator:
         for name, stats in people_metrics.items():
             people_data.append({
                 "Name": name,
-                "Role": stats["role"],
-                "Hours Logged": round(stats["hours"], 2),
-                "Issues Worked Count": stats["issues_count"],
-                "Issues List": stats["issues_list"],
-                "Comments Count": stats["comments"]
+                "Assigned": stats["assigned_count"],
+                "Path (Keys)": stats["issues_list"],
+                "Est (h)": round(stats["estimated_hours"], 1),
+                "Actual (h)": round(stats["hours"], 1),
+                "Engagement": f"{stats['comments']} comments",
+                "Blockers": f"{stats['blockers']} flagged"
             })
         df_people = pd.DataFrame(people_data)
         
