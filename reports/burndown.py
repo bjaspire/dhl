@@ -6,40 +6,85 @@ from dateutil import parser as date_parser
 from datetime import timedelta
 
 
+DONE_STATUSES = {"done", "resolved", "closed", "completed", "dev complete", 
+                 "dev - completed", "in qa"}
+
+
+def _find_completion_date(issue, sprint_start, sprint_end):
+    """
+    Determine the date an issue was completed within the sprint.
+    
+    Strategy:
+    1. Check changelog for status transitions to a 'done' status within the sprint dates.
+    2. If no changelog transition found but the issue is currently in a done status,
+       use the 'resolutiondate' or 'statuscategorychangedate' as fallback.
+    3. If neither is available, use the 'updated' field as last resort.
+    
+    Returns the completion date or None if not completed in this sprint.
+    """
+    # Strategy 1: Look for explicit status transitions in changelog
+    changelog = issue.get("changelog", {}).get("histories", [])
+    
+    best_done_date = None
+    for history in changelog:
+        created = date_parser.parse(history.get("created", ""))
+        for item in history.get("items", []):
+            if item.get("field") == "status":
+                to_status = (item.get("toString") or "").lower()
+                if to_status in DONE_STATUSES:
+                    if sprint_start <= created <= sprint_end:
+                        # Take the LATEST done transition in the sprint
+                        if best_done_date is None or created > best_done_date:
+                            best_done_date = created
+    
+    if best_done_date:
+        return best_done_date.date()
+    
+    # Strategy 2: Issue is currently done but no changelog entry found (pagination issue)
+    fields = issue.get("fields", {})
+    current_status = fields.get("status", {}).get("name", "").lower()
+    
+    if current_status in DONE_STATUSES:
+        # Try resolutiondate first
+        resolution_date_str = fields.get("resolutiondate")
+        if resolution_date_str:
+            res_date = date_parser.parse(resolution_date_str)
+            if sprint_start <= res_date <= sprint_end:
+                return res_date.date()
+        
+        # Try statuscategorychangedate
+        status_change_str = fields.get("statuscategorychangedate")
+        if status_change_str:
+            status_date = date_parser.parse(status_change_str)
+            if sprint_start <= status_date <= sprint_end:
+                return status_date.date()
+        
+        # Last resort: use 'updated' field
+        updated_str = fields.get("updated")
+        if updated_str:
+            updated_date = date_parser.parse(updated_str)
+            if sprint_start <= updated_date <= sprint_end:
+                return updated_date.date()
+    
+    return None
+
+
 def calculate_burndown(work_items, sprint_start_date, sprint_end_date):
     """
-    Calculates burndown data from work items using their changelogs.
-    Returns a list of (date, remaining_count) tuples for plotting.
-    
-    Logic:
-    - Start with total work items on sprint start date.
-    - For each day, subtract items that transitioned to a "done" status.
-    - Track the ideal burndown line (linear from total to 0).
+    Calculates burndown data from work items.
+    Returns a dict with dates, actual remaining, and ideal remaining for plotting.
     """
-    done_statuses = {"done", "resolved", "closed", "completed", "dev complete", 
-                     "dev - completed", "in qa"}
-    
     total = len(work_items)
     
     # Build a map of date -> number of items completed on that date
     completion_dates = {}
     
     for issue in work_items:
-        changelog = issue.get("changelog", {}).get("histories", [])
-        done_date = None
-        
-        for history in changelog:
-            created = date_parser.parse(history.get("created", ""))
-            for item in history.get("items", []):
-                if item.get("field") == "status":
-                    to_status = (item.get("toString") or "").lower()
-                    if to_status in done_statuses:
-                        # Use the latest "done" transition within the sprint
-                        if sprint_start_date <= created <= sprint_end_date:
-                            done_date = created.date()
-        
+        done_date = _find_completion_date(issue, sprint_start_date, sprint_end_date)
         if done_date:
             completion_dates[done_date] = completion_dates.get(done_date, 0) + 1
+    
+    total_completed = sum(completion_dates.values())
     
     # Generate day-by-day burndown
     start = sprint_start_date.date()
@@ -69,7 +114,8 @@ def calculate_burndown(work_items, sprint_start_date, sprint_end_date):
         "dates": dates,
         "actual": actual_remaining,
         "ideal": ideal_remaining,
-        "total": total
+        "total": total,
+        "completed": total_completed
     }
 
 
@@ -79,6 +125,7 @@ def generate_burndown_chart(burndown_data, output_path=None):
     actual = burndown_data["actual"]
     ideal = burndown_data["ideal"]
     total = burndown_data["total"]
+    completed = burndown_data["completed"]
     
     fig, ax = plt.subplots(figsize=(10, 6))
     
@@ -88,13 +135,13 @@ def generate_burndown_chart(burndown_data, output_path=None):
     
     # Actual burndown line (solid blue with fill)
     ax.plot(dates, actual, marker='o', markersize=4, linestyle='-', 
-            color='#0052cc', linewidth=2.5, label='Actual Remaining')
+            color='#0052cc', linewidth=2.5, label=f'Actual Remaining ({completed} completed)')
     ax.fill_between(dates, actual, alpha=0.08, color='#0052cc')
     
     # Styling
     ax.set_xlabel('Sprint Days', fontsize=11, fontweight='bold')
     ax.set_ylabel('Remaining Items', fontsize=11, fontweight='bold')
-    ax.set_title('Sprint Burndown', fontsize=14, fontweight='bold', pad=15)
+    ax.set_title(f'Sprint Burndown ({total} items)', fontsize=14, fontweight='bold', pad=15)
     ax.legend(loc='upper right', framealpha=0.9)
     ax.grid(True, linestyle='--', alpha=0.4)
     ax.set_ylim(bottom=0, top=total + 2)
