@@ -322,11 +322,11 @@
             </div>
             <div class="card">
                 <span class="card-label">Est Hours</span>
-                <span class="card-value">{{ total_estimated_hours }}h</span>
+                <span class="card-value">{{ total_estimated_hours | jira_time | safe }}</span>
             </div>
             <div class="card">
                 <span class="card-label">Actual Hours</span>
-                <span class="card-value">{{ total_worked_hours }}h</span>
+                <span class="card-value">{{ total_worked_hours | jira_time | safe }}</span>
             </div>
             <div class="card">
                 <span class="card-label">Total Issues</span>
@@ -436,9 +436,10 @@
                         <td>
                             <div class="issues-list">{{ stats.issues_list }}</div>
                         </td>
-                        <td style="font-weight: 600; color: var(--text-muted);">{{ stats.estimated_hours | round(1) }}h
+                        <td style="font-weight: 600; color: var(--text-muted);">{{ stats.estimated_hours | jira_time |
+                            safe }}
                         </td>
-                        <td style="font-weight: 600; color: var(--primary);">{{ stats.hours | round(1) }}h</td>
+                        <td style="font-weight: 600; color: var(--primary);">{{ stats.hours | jira_time | safe }}</td>
                         <td>
                             {% set variance = (((stats.hours - stats.estimated_hours) / stats.estimated_hours) * 100) if
                             stats.estimated_hours > 0 else 0 %}
@@ -466,8 +467,8 @@
                 <tfoot style="background: #f4f5f7; font-weight: 700;">
                     <tr>
                         <td colspan="3" style="text-align: right; padding-right: 20px;">Totals:</td>
-                        <td style="color: var(--text-muted);">{{ total_estimated_hours }}h</td>
-                        <td style="color: var(--primary);">{{ total_worked_hours }}h</td>
+                        <td style="color: var(--text-muted);">{{ total_estimated_hours | jira_time | safe }}</td>
+                        <td style="color: var(--primary);">{{ total_worked_hours | jira_time | safe }}</td>
                         <td colspan="3"></td>
                     </tr>
                 </tfoot>
