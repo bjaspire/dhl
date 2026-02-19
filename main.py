@@ -253,8 +253,9 @@ def run():
     
     report_gen = SprintReportGenerator("templates", sprint_output_dir)
     html_path = report_gen.generate_html(sprint_metrics, "report_template.html", f"{report_slug}.html")
+    pdf_path = report_gen.generate_pdf(sprint_metrics, "pdf_people_template.html", f"{report_slug}_people.pdf")
     
-    print(f"Done! Report generated:\n- HTML: {html_path}")
+    print(f"Done! Report generated:\n- HTML: {html_path}\n- PDF:  {pdf_path}")
 
 if __name__ == "__main__":
     try:

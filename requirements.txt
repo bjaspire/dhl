@@ -3,3 +3,4 @@ jinja2
 matplotlib
 pyyaml
 python-dateutil
+weasyprint

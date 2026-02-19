@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4 landscape;
+            margin: 16mm 14mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            font-size: 8.5pt;
+            line-height: 1.4;
+            background: #ffffff;
+        }
+
+        /* ── Header Band ── */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #0052cc 0%, #2684ff 100%);
+            color: white;
+            padding: 14px 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .header h1 {
+            font-size: 15pt;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .header .subtitle {
+            font-size: 7pt;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            opacity: 0.8;
+            margin-bottom: 2px;
+        }
+
+        .header .meta {
+            text-align: right;
+            font-size: 7pt;
+            opacity: 0.85;
+            line-height: 1.5;
+        }
+
+        /* ── Section Title ── */
+        .section-title {
+            font-size: 10pt;
+            font-weight: 700;
+            color: #0052cc;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .section-title .dot {
+            width: 6px;
+            height: 6px;
+            background: #0052cc;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        /* ── Table ── */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 7.5pt;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
+        thead th {
+            background: #f1f5f9;
+            color: #475569;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-size: 6.5pt;
+            padding: 7px 8px;
+            text-align: left;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        tbody td {
+            padding: 5px 8px;
+            border-bottom: 1px solid #f1f5f9;
+            vertical-align: top;
+        }
+
+        tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+
+        .name {
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+        }
+
+        .count {
+            text-align: center;
+            font-weight: 800;
+            color: #0052cc;
+            font-size: 8.5pt;
+        }
+
+        .keys {
+            font-size: 6.5pt;
+            color: #64748b;
+            word-break: break-word;
+            max-width: 280px;
+            line-height: 1.3;
+        }
+
+        .keys a {
+            color: #2563eb;
+            text-decoration: none;
+        }
+
+        .est {
+            color: #64748b;
+            font-weight: 600;
+        }
+
+        .actual {
+            color: #0052cc;
+            font-weight: 700;
+        }
+
+        .var-over {
+            color: #dc2626;
+            font-weight: 700;
+        }
+
+        .var-under {
+            color: #16a34a;
+            font-weight: 700;
+        }
+
+        .var-ok {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        tfoot td {
+            background: #f1f5f9;
+            font-weight: 700;
+            padding: 6px 8px;
+            border-top: 2px solid #e2e8f0;
+            font-size: 7.5pt;
+        }
+
+        /* ── Charts Section ── */
+        .charts-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 16px;
+            page-break-inside: avoid;
+        }
+
+        .chart-card {
+            flex: 1;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .chart-card .chart-title {
+            font-size: 8pt;
+            font-weight: 700;
+            color: #0052cc;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .chart-card img {
+            width: 100%;
+            height: auto;
+            border-radius: 4px;
+        }
+
+        .chart-caption {
+            font-size: 6pt;
+            color: #94a3b8;
+            margin-top: 6px;
+        }
+
+        /* ── Footer ── */
+        .footer {
+            margin-top: 12px;
+            text-align: center;
+            font-size: 6pt;
+            color: #94a3b8;
+            letter-spacing: 0.02em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Header -->
+    <div class="header">
+        <div>
+            <div class="subtitle">Sprint Report</div>
+            <h1>{{ sprint_name }}</h1>
+        </div>
+        <div class="meta">
+            {{ start_date }} — {{ end_date }}<br>
+            Generated {{ generated_at }}
+        </div>
+    </div>
+
+    <!-- People Contribution -->
+    <div class="section-title"><span class="dot"></span> People Contribution</div>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 13%;">Team Member</th>
+                <th style="width: 5%; text-align: center;">Assigned</th>
+                <th style="width: 44%;">Path (Keys)</th>
+                <th style="width: 12%;">Est (h)</th>
+                <th style="width: 12%;">Actual (h)</th>
+                <th style="width: 10%;">Var (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for name, stats in people_metrics.items() %}
+            <tr>
+                <td class="name">{{ name }}</td>
+                <td class="count">{{ stats.assigned_count }}</td>
+                <td class="keys">
+                    {% for key in stats.issues_keys %}
+                    <a href="{{ jira_url }}/browse/{{ key }}">{{ key }}</a>{% if not loop.last %}, {% endif %}
+                    {% endfor %}
+                </td>
+                <td class="est">{{ stats.estimated_hours | jira_time_plain }}</td>
+                <td class="actual">{{ stats.hours | jira_time_plain }}</td>
+                <td>
+                    {% set variance = (((stats.hours - stats.estimated_hours) / stats.estimated_hours) * 100) if
+                    stats.estimated_hours > 0 else 0 %}
+                    {% if variance > 20 %}
+                    <span class="var-over">+{{ variance | round(0) }}%</span>
+                    {% elif variance < -20 %} <span class="var-under">{{ variance | round(0) }}%</span>
+                        {% else %}
+                        <span class="var-ok">{{ variance | round(0) }}%</span>
+                        {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr>
+                <td colspan="3" style="text-align: right; padding-right: 12px;">Totals</td>
+                <td class="est">{{ total_estimated_hours | jira_time_plain }}</td>
+                <td class="actual">{{ total_worked_hours | jira_time_plain }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <!-- Charts -->
+    <div class="charts-row">
+        <div class="chart-card">
+            <div class="chart-title">Sprint Burndown</div>
+            <img src="data:image/png;base64,{{ burndown_chart_base64 }}" alt="Burndown Chart">
+            <div class="chart-caption">Remaining work items over the sprint duration vs ideal pace</div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">Velocity Trend</div>
+            <img src="data:image/png;base64,{{ velocity_chart_base64 }}" alt="Velocity Chart">
+            <div class="chart-caption">Estimated vs actual hours across recent sprints</div>
+        </div>
+    </div>
+
+    <div class="footer">Auto-generated Sprint Report · {{ sprint_name }} · {{ generated_at }}</div>
+
+</body>
+
+</html>
