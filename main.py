@@ -79,6 +79,12 @@ def run():
     high_priority_bugs = 0
     blocked_issues = 0
     production_incidents = 0
+    bugs_reported_keys = []
+    bugs_resolved_keys = []
+    high_priority_bugs_keys = []
+    blocked_keys = []
+    production_incident_keys = []
+    ticket_status_map = {}
 
     sp_field = jira_cfg.get("story_points_field", "customfield_10016")
     processed_issues = []
@@ -105,16 +111,26 @@ def run():
             scope_added += 1
             scope_added_keys.append(issue.get("key", ""))
 
+        issue_key = issue.get("key", "")
+        ticket_status_map[issue_key] = status
+
         if issue_type.lower() == "bug":
             bugs_reported += 1
-            if is_done: bugs_resolved += 1
-            if priority.lower() in ["high", "highest", "critical", "p0", "p1"]: high_priority_bugs += 1
+            bugs_reported_keys.append(issue_key)
+            if is_done:
+                bugs_resolved += 1
+                bugs_resolved_keys.append(issue_key)
+            if priority.lower() in ["high", "highest", "critical", "p0", "p1"]:
+                high_priority_bugs += 1
+                high_priority_bugs_keys.append(issue_key)
         
         if status.lower() in ["blocked", "on hold"]:
             blocked_issues += 1
+            blocked_keys.append(issue_key)
         
         if "incident" in issue_type.lower():
             production_incidents += 1
+            production_incident_keys.append(issue_key)
 
         issue["worklogs"] = fields.get("worklog", {}).get("worklogs", [])
         issue["comments"] = fields.get("comment", {}).get("comments", [])
@@ -136,10 +152,19 @@ def run():
         status_breakdown[s]["hours"] += est_hours
         status_breakdown[s]["tickets"].append(key)
     
-    # Round hours and sort breakdown by count descending
+    # Round hours and sort by workflow order
     for s in status_breakdown:
         status_breakdown[s]["hours"] = round(status_breakdown[s]["hours"], 1)
-    status_breakdown = dict(sorted(status_breakdown.items(), key=lambda x: x[1]["count"], reverse=True))
+    
+    STATUS_ORDER = ["To Do", "Re-open", "In Progress", "Dev - Completed", "IN QA", "Done"]
+    def status_sort_key(item):
+        name = item[0]
+        # Case-insensitive match against the defined order
+        for i, ordered in enumerate(STATUS_ORDER):
+            if name.lower() == ordered.lower():
+                return i
+        return len(STATUS_ORDER)  # Unknown statuses go to end
+    status_breakdown = dict(sorted(status_breakdown.items(), key=status_sort_key))
 
     # 4. Velocity Trend (Estimated vs Worked Hours)
     all_sprints = get_sprints(client, board_id, state="closed,active").get("values", [])
@@ -241,10 +266,16 @@ def run():
         "completed_story_points": round(total_completed_sp, 1),
         "committed_story_points": round(total_estimated_hours, 1), # Same as total_estimated_hours
         "bugs_reported": bugs_reported,
+        "bugs_reported_keys": bugs_reported_keys,
         "bugs_resolved": bugs_resolved,
+        "bugs_resolved_keys": bugs_resolved_keys,
         "high_priority_bugs": high_priority_bugs,
+        "high_priority_bugs_keys": high_priority_bugs_keys,
         "blocked_issues": blocked_issues,
+        "blocked_keys": blocked_keys,
         "production_incidents": production_incidents,
+        "production_incident_keys": production_incident_keys,
+        "ticket_status_map": ticket_status_map,
         "status_breakdown": status_breakdown,
         "velocity_chart_base64": chart_base64,
         "burndown_chart_base64": burndown_base64,
