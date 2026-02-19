@@ -177,8 +177,41 @@ def run():
     # 2. Process Metrics
     m = calculate_metrics(work_items, sprint.get("startDateParsed"), sp_field, sprint.get("state", "active"))
     
-    # Finalize Status Breakdown Sorting
-    STATUS_ORDER = ["To Do", "Re-open", "In Progress", "Dev - Completed", "IN QA", "Done"]
+    # Finalize Status Breakdown Sorting — fetch board column order from Jira
+    def get_board_status_order(client, board_id):
+        """Fetch status order from the Jira board's column configuration.
+        
+        Uses /rest/agile/1.0/board/{boardId}/configuration which returns
+        columns in the exact left-to-right order as displayed on the board,
+        with each column mapping to its associated statuses.
+        """
+        try:
+            data = client.get_agile(f"board/{board_id}/configuration")
+            columns = data.get("columnConfig", {}).get("columns", [])
+            
+            ordered = []
+            for col in columns:
+                for status in col.get("statuses", []):
+                    # Each status has an 'id'; we need the name.
+                    # Fetch from the status API to get the name.
+                    try:
+                        status_data = client.get(f"status/{status['id']}")
+                        name = status_data.get("name", "")
+                        if name:
+                            ordered.append(name)
+                    except Exception:
+                        pass
+            return ordered
+        except Exception as e:
+            print(f"Warning: Could not fetch board configuration: {e}")
+            return []
+
+    STATUS_ORDER = get_board_status_order(client, board_id)
+    
+    # Ensure all board statuses are present, even with 0 tasks
+    for status in STATUS_ORDER:
+        if status not in m["status_breakdown"]:
+            m["status_breakdown"][status] = {"count": 0, "hours": 0, "tickets": []}
     sorted_breakdown = dict(sorted(m["status_breakdown"].items(), 
         key=lambda x: next((i for i, s in enumerate(STATUS_ORDER) if x[0].lower() == s.lower()), len(STATUS_ORDER))))
     for s in sorted_breakdown.values(): s["hours"] = round(s["hours"], 1)
