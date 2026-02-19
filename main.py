@@ -69,6 +69,9 @@ def run():
     spillover_issues = 0
     scope_added = 0
     removed_issues = 0
+    scope_added_keys = []
+    spillover_keys = []
+    removed_keys = []
     total_completed_sp = 0
     
     bugs_reported = 0
@@ -96,9 +99,11 @@ def run():
             total_completed_sp += sp
         else:
             spillover_issues += 1
+            spillover_keys.append(issue.get("key", ""))
             
         if sprint_start_date and created_date > sprint_start_date:
             scope_added += 1
+            scope_added_keys.append(issue.get("key", ""))
 
         if issue_type.lower() == "bug":
             bugs_reported += 1
@@ -117,14 +122,24 @@ def run():
 
     completion_rate = round((completed_issues / total_issues * 100), 2) if total_issues > 0 else 0
 
-    # 4. Status Breakdown
+    # 4. Status Breakdown (with hours and ticket keys)
     status_breakdown = {}
     for iss in work_items:
         s = iss["fields"].get("status", {}).get("name")
-        status_breakdown[s] = status_breakdown.get(s, 0) + 1
+        key = iss.get("key", "")
+        est_raw = iss["fields"].get("timeoriginalestimate") or 0
+        est_hours = est_raw / 3600.0
+
+        if s not in status_breakdown:
+            status_breakdown[s] = {"count": 0, "hours": 0, "tickets": []}
+        status_breakdown[s]["count"] += 1
+        status_breakdown[s]["hours"] += est_hours
+        status_breakdown[s]["tickets"].append(key)
     
-    # Sort breakdown by count descending
-    status_breakdown = dict(sorted(status_breakdown.items(), key=lambda x: x[1], reverse=True))
+    # Round hours and sort breakdown by count descending
+    for s in status_breakdown:
+        status_breakdown[s]["hours"] = round(status_breakdown[s]["hours"], 1)
+    status_breakdown = dict(sorted(status_breakdown.items(), key=lambda x: x[1]["count"], reverse=True))
 
     # 4. Velocity Trend (Estimated vs Worked Hours)
     all_sprints = get_sprints(client, board_id, state="closed,active").get("values", [])
@@ -216,7 +231,10 @@ def run():
         "completed_issues": completed_issues,
         "spillover_issues": spillover_issues,
         "scope_added": scope_added,
+        "scope_added_keys": scope_added_keys,
         "removed_issues": removed_issues,
+        "removed_keys": removed_keys,
+        "spillover_keys": spillover_keys,
         "completion_rate": completion_rate,
         "total_estimated_hours": round(total_estimated_hours, 1),
         "total_worked_hours": round(total_worked_hours, 1),
@@ -231,7 +249,8 @@ def run():
         "velocity_chart_base64": chart_base64,
         "burndown_chart_base64": burndown_base64,
         "people_metrics": people_metrics,
-        "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "jira_url": jira_cfg["url"]
     }
 
     report_slug = sprint["name"].lower().replace(" ", "_").replace("/", "_")

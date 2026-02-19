@@ -249,18 +249,18 @@
         /* Status Breakdown Styles */
         .status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
             margin-bottom: 30px;
         }
 
         .status-item {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 16px;
+            flex-direction: column;
+            gap: 10px;
+            padding: 16px 18px;
             background: white;
-            border-radius: 10px;
+            border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             border-left: 4px solid var(--primary-light);
             transition: all 0.2s;
@@ -271,19 +271,56 @@
             transform: translateY(-2px);
         }
 
+        .status-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
         .status-name {
             font-size: 0.9rem;
-            font-weight: 600;
+            font-weight: 700;
             color: var(--text-main);
         }
 
         .status-count {
-            background: var(--bg);
-            padding: 2px 10px;
+            padding: 3px 12px;
             border-radius: 12px;
             font-size: 0.85rem;
             font-weight: 800;
+        }
+
+        .status-meta {
+            display: flex;
+            gap: 12px;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .status-meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-tickets {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            word-break: break-word;
+        }
+
+        .issue-link {
             color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.15s;
+        }
+
+        .issue-link:hover {
+            color: var(--secondary);
+            text-decoration: underline;
         }
 
         footer {
@@ -400,12 +437,33 @@
 
         <section style="margin-bottom: 40px;">
             <h2>Status Distribution</h2>
+            {% set status_colors = [
+            {'border': '#36b37e', 'bg': '#e3fcef', 'text': '#006644'},
+            {'border': '#0065ff', 'bg': '#deebff', 'text': '#0747a6'},
+            {'border': '#ff5630', 'bg': '#ffebe6', 'text': '#bf2600'},
+            {'border': '#ffab00', 'bg': '#fff7e6', 'text': '#d46b08'},
+            {'border': '#6554c0', 'bg': '#eae6ff', 'text': '#403294'},
+            {'border': '#00b8d9', 'bg': '#e6fcff', 'text': '#008da6'},
+            {'border': '#ff8b00', 'bg': '#fff3e0', 'text': '#b35c00'},
+            {'border': '#e91e63', 'bg': '#fce4ec', 'text': '#880e4f'},
+            {'border': '#8993a4', 'bg': '#f4f5f7', 'text': '#42526e'},
+            {'border': '#00875a', 'bg': '#e3fcef', 'text': '#006644'}
+            ] %}
             <div class="status-grid">
-                {% for status, count in status_breakdown.items() %}
-                <div class="status-item"
-                    style="border-left-color: {{ 'var(--success)' if status.lower() in ['done', 'resolved', 'closed', 'completed'] else 'var(--primary-light)' }}">
-                    <span class="status-name">{{ status }}</span>
-                    <span class="status-count">{{ count }}</span>
+                {% for status, info in status_breakdown.items() %}
+                {% set color = status_colors[loop.index0 % status_colors|length] %}
+                <div class="status-item" style="border-left-color: {{ color.border }};">
+                    <div class="status-header">
+                        <span class="status-name">{{ status }}</span>
+                        <span class="status-count" style="background: {{ color.bg }}; color: {{ color.text }};">{{
+                            info.count }}</span>
+                    </div>
+                    <div class="status-meta">
+                        <span>⏱ {{ info.hours | jira_time | safe }}</span>
+                    </div>
+                    <div class="status-tickets">{% for key in info.tickets %}<a href="{{ jira_url }}/browse/{{ key }}"
+                            target="_blank" class="issue-link">{{ key }}</a>{% if not loop.last %}, {% endif %}{% endfor
+                        %}</div>
                 </div>
                 {% endfor %}
             </div>
@@ -434,7 +492,9 @@
                             <span class="badge badge-info" style="font-size: 0.9rem;">{{ stats.assigned_count }}</span>
                         </td>
                         <td>
-                            <div class="issues-list">{{ stats.issues_list }}</div>
+                            <div class="issues-list">{% for key in stats.issues_keys %}<a
+                                    href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link">{{ key
+                                    }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>
                         </td>
                         <td style="font-weight: 600; color: var(--text-muted);">{{ stats.estimated_hours | jira_time |
                             safe }}
@@ -502,21 +562,37 @@
                     <th>Change Type</th>
                     <th>Count</th>
                     <th>Impact</th>
+                    <th>Tickets</th>
                 </tr>
                 <tr>
                     <td>Scope Added</td>
                     <td><span class="badge badge-info">+{{ scope_added }}</span></td>
                     <td style="font-size: 0.85rem;">Items introduced mid-cycle</td>
+                    <td>
+                        <div class="issues-list">{% for key in scope_added_keys %}<a
+                                href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link">{{ key
+                                }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>
+                    </td>
                 </tr>
                 <tr>
                     <td>Scope Removed</td>
                     <td><span class="badge badge-info">{{ removed_issues }}</span></td>
                     <td style="font-size: 0.85rem;">Items de-prioritized</td>
+                    <td>
+                        <div class="issues-list">{% for key in removed_keys %}<a href="{{ jira_url }}/browse/{{ key }}"
+                                target="_blank" class="issue-link">{{ key }}</a>{% if not loop.last %}, {% endif %}{%
+                            endfor %}</div>
+                    </td>
                 </tr>
                 <tr>
                     <td>Spillover</td>
                     <td><span class="badge badge-warning">{{ spillover_issues }}</span></td>
                     <td style="font-size: 0.85rem;">Transfer to next sprint</td>
+                    <td>
+                        <div class="issues-list">{% for key in spillover_keys %}<a
+                                href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link">{{ key
+                                }}</a>{% if not loop.last %}, {% endif %}{% endfor %}</div>
+                    </td>
                 </tr>
             </table>
             <div

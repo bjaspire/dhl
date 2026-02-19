@@ -101,6 +101,7 @@ def aggregate_people_metrics(issues, sprint_id=None, sprint_start_date=None, spr
         # Use all assigned issues for the list to ensure full transparency
         sorted_keys = sorted(list(stats["assigned_issues"]))
         stats["issues_count"] = len(sorted_keys)
+        stats["issues_keys"] = sorted_keys
         stats["issues_list"] = ", ".join(sorted_keys)
         stats["assigned_count"] = len(sorted_keys)
         stats["assigned_list"] = stats["issues_list"]
