@@ -1,4 +1,3 @@
-import pandas as pd
 from jinja2 import Environment, FileSystemLoader
 import os
 
@@ -47,30 +46,4 @@ class SprintReportGenerator:
         output_path = os.path.join(self.output_dir, output_filename)
         with open(output_path, "w") as f:
             f.write(html_content)
-        return output_path
-
-    def generate_excel(self, sprint_metrics, people_metrics, output_filename):
-        output_path = os.path.join(self.output_dir, output_filename)
-        
-        # Sprint Summary Sheet
-        df_summary = pd.DataFrame([sprint_metrics])
-        
-        # People Metrics Sheet
-        people_data = []
-        for name, stats in people_metrics.items():
-            people_data.append({
-                "Name": name,
-                "Assigned": stats["assigned_count"],
-                "Path (Keys)": stats["issues_list"],
-                "Est (h)": round(stats["estimated_hours"], 1),
-                "Actual (h)": round(stats["hours"], 1),
-                "Engagement": f"{stats['comments']} comments",
-                "Blockers": f"{stats['blockers']} flagged"
-            })
-        df_people = pd.DataFrame(people_data)
-        
-        with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
-            df_summary.to_excel(writer, sheet_name='Sprint Summary', index=False)
-            df_people.to_excel(writer, sheet_name='People Contribution', index=False)
-            
         return output_path

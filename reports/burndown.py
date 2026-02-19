@@ -27,15 +27,18 @@ def _find_completion_date(issue, sprint_start, sprint_end):
     
     best_done_date = None
     for history in changelog:
+        # Check if this history contains any status changes to 'done' first
+        status_items = [item for item in history.get("items", []) if item.get("field") == "status"]
+        if not any((item.get("toString") or "").lower() in DONE_STATUSES for item in status_items):
+            continue
+            
         created = date_parser.parse(history.get("created", ""))
-        for item in history.get("items", []):
-            if item.get("field") == "status":
-                to_status = (item.get("toString") or "").lower()
-                if to_status in DONE_STATUSES:
-                    if sprint_start <= created <= sprint_end:
-                        # Take the LATEST done transition in the sprint
-                        if best_done_date is None or created > best_done_date:
-                            best_done_date = created
+        # Only proceed if the event is within the sprint timeframe
+        if sprint_start <= created <= sprint_end:
+            for item in status_items:
+                if (item.get("toString") or "").lower() in DONE_STATUSES:
+                    if best_done_date is None or created > best_done_date:
+                        best_done_date = created
     
     if best_done_date:
         return best_done_date.date()

@@ -16,38 +16,22 @@ def load_config(config_path="config/config.yaml"):
     with open(config_path, "r") as f:
         return yaml.safe_load(f)
 
-def run():
-    config = load_config()
-    jira_cfg = config["jira"]
-    report_cfg = config["report"]
-
-    client = JiraClient(jira_cfg["url"], jira_cfg["email"], jira_cfg["token"])
-    
-    # 1. Fetch Sprint
-    board_id = jira_cfg["board_id"]
-    sprint_name = jira_cfg.get("sprint_name")
-    
+def get_sprint_info(client, board_id, sprint_name=None):
+    """Fetches sprint object based on name or active status."""
     if sprint_name:
         sprint = get_sprint_by_name(client, board_id, sprint_name)
     else:
         sprint = get_active_sprint(client, board_id)
-        
+    
     if not sprint:
-        print(f"Error: Could not find sprint {sprint_name} on board {board_id}")
-        return
+        return None
+        
+    sprint["startDateParsed"] = parser.parse(sprint["startDate"]) if "startDate" in sprint else None
+    sprint["endDateParsed"] = parser.parse(sprint["endDate"]) if "endDate" in sprint else None
+    return sprint
 
-    print(f"Generating report for: {sprint['name']} (ID: {sprint['id']})")
-    sprint_start_date = parser.parse(sprint["startDate"]) if "startDate" in sprint else None
-    sprint_end_date = parser.parse(sprint["endDate"]) if "endDate" in sprint else None
-    sprint_goal = sprint.get("goal")
-
-    # 2. Fetch Issues
-    raw_issues = get_sprint_issues(client, sprint["id"])
-    
-    # 3. Process Metrics
-    standard_types = ["Story", "Task", "Bug", "New Feature", "New feature"]
-    
-    # Pre-filter: Issues accurately associated with this sprint
+def filter_sprint_work_items(raw_issues, sprint_id):
+    """Filters issues to strictly include those associated with the sprint and non-overhead types."""
     active_in_sprint = []
     for iss in raw_issues:
         fields = iss.get("fields", {})
@@ -55,254 +39,188 @@ def run():
         in_sprint = False
         if isinstance(sf, list):
             for s in sf:
-                if isinstance(s, dict) and s.get("id") == sprint["id"]: in_sprint = True; break
-        elif isinstance(sf, dict) and sf.get("id") == sprint["id"]:
+                if isinstance(s, dict) and s.get("id") == sprint_id: in_sprint = True; break
+        elif isinstance(sf, dict) and sf.get("id") == sprint_id:
             in_sprint = True
         
         if in_sprint: active_in_sprint.append(iss)
 
-    # The 87 work items: Non-subtasks and Non-Epics
-    work_items = [iss for iss in active_in_sprint if not iss['fields'].get('issuetype', {}).get('subtask') and iss['fields'].get('issuetype', {}).get('name') != 'Epic']
-    
-    total_issues = len(work_items) # Should be 87
-    completed_issues = 0
-    spillover_issues = 0
-    scope_added = 0
-    removed_issues = 0
-    scope_added_keys = []
-    spillover_keys = []
-    removed_keys = []
-    total_completed_sp = 0
-    
-    bugs_reported = 0
-    bugs_resolved = 0
-    high_priority_bugs = 0
-    blocked_issues = 0
-    production_incidents = 0
-    bugs_reported_keys = []
-    bugs_resolved_keys = []
-    high_priority_bugs_keys = []
-    blocked_keys = []
-    production_incident_keys = []
-    ticket_status_map = {}
+    # Work items: Non-subtasks and Non-Epics
+    return [iss for iss in active_in_sprint if not iss['fields'].get('issuetype', {}).get('subtask') and iss['fields'].get('issuetype', {}).get('name') != 'Epic']
 
-    sp_field = jira_cfg.get("story_points_field", "customfield_10016")
-    processed_issues = []
+def calculate_metrics(work_items, sprint_start_date, sp_field):
+    """Consolidated pass over work items to calculate all sprint and quality metrics."""
+    metrics = {
+        "completed_count": 0, "spillover_count": 0, "scope_added_count": 0,
+        "total_completed_sp": 0, "total_orig_est": 0,
+        "spillover_keys": [], "scope_added_keys": [],
+        "bugs_reported": 0, "bugs_resolved": 0, "high_priority_bugs": 0,
+        "blocked_issues": 0, "production_incidents": 0,
+        "bugs_reported_keys": [], "bugs_resolved_keys": [], "high_priority_keys": [],
+        "blocked_keys": [], "production_incident_keys": [],
+        "status_map": {}, "status_breakdown": {}
+    }
 
     for issue in work_items:
         fields = issue.get("fields", {})
+        key = issue["key"]
         status = fields.get("status", {}).get("name")
         issue_type = fields.get("issuetype", {}).get("name")
-        priority = fields.get("priority", {}).get("name")
+        priority = (fields.get("priority") or {}).get("name", "Medium")
         created_date = parser.parse(fields.get("created"))
+        
+        # Estimate / Story Points
+        est_raw = fields.get("timeoriginalestimate") or 0
+        est_h = est_raw / 3600.0
+        metrics["total_orig_est"] += est_h
         
         sp_raw = fields.get(sp_field) or 0
         sp = sp_raw / 3600.0 if sp_field == "timeoriginalestimate" else sp_raw
-            
+        
+        # Status Parsing
         is_done = status.lower() in ["done", "resolved", "closed", "completed", "dev complete", "in qa", "dev - completed"]
+        metrics["status_map"][key] = status
+        
         if is_done:
-            completed_issues += 1
-            total_completed_sp += sp
+            metrics["completed_count"] += 1
+            metrics["total_completed_sp"] += sp
         else:
-            spillover_issues += 1
-            spillover_keys.append(issue.get("key", ""))
+            metrics["spillover_count"] += 1
+            metrics["spillover_keys"].append(key)
             
         if sprint_start_date and created_date > sprint_start_date:
-            scope_added += 1
-            scope_added_keys.append(issue.get("key", ""))
+            metrics["scope_added_count"] += 1
+            metrics["scope_added_keys"].append(key)
 
-        issue_key = issue.get("key", "")
-        ticket_status_map[issue_key] = status
-
+        # Quality Parsing
         if issue_type.lower() == "bug":
-            bugs_reported += 1
-            bugs_reported_keys.append(issue_key)
+            metrics["bugs_reported"] += 1
+            metrics["bugs_reported_keys"].append(key)
             if is_done:
-                bugs_resolved += 1
-                bugs_resolved_keys.append(issue_key)
+                metrics["bugs_resolved"] += 1
+                metrics["bugs_resolved_keys"].append(key)
             if priority.lower() in ["high", "highest", "critical", "p0", "p1"]:
-                high_priority_bugs += 1
-                high_priority_bugs_keys.append(issue_key)
+                metrics["high_priority_bugs"] += 1
+                metrics["high_priority_keys"].append(key)
         
         if status.lower() in ["blocked", "on hold"]:
-            blocked_issues += 1
-            blocked_keys.append(issue_key)
+            metrics["blocked_issues"] += 1
+            metrics["blocked_keys"].append(key)
         
         if "incident" in issue_type.lower():
-            production_incidents += 1
-            production_incident_keys.append(issue_key)
+            metrics["production_incidents"] += 1
+            metrics["production_incident_keys"].append(key)
 
-        issue["worklogs"] = fields.get("worklog", {}).get("worklogs", [])
-        issue["comments"] = fields.get("comment", {}).get("comments", [])
-        processed_issues.append(issue)
+        # Status Breakdown Data
+        if status not in metrics["status_breakdown"]:
+            metrics["status_breakdown"][status] = {"count": 0, "hours": 0, "tickets": []}
+        metrics["status_breakdown"][status]["count"] += 1
+        metrics["status_breakdown"][status]["hours"] += est_h
+        metrics["status_breakdown"][status]["tickets"].append(key)
 
-    completion_rate = round((completed_issues / total_issues * 100), 2) if total_issues > 0 else 0
+    return metrics
 
-    # 4. Status Breakdown (with hours and ticket keys)
-    status_breakdown = {}
-    for iss in work_items:
-        s = iss["fields"].get("status", {}).get("name")
-        key = iss.get("key", "")
-        est_raw = iss["fields"].get("timeoriginalestimate") or 0
-        est_hours = est_raw / 3600.0
-
-        if s not in status_breakdown:
-            status_breakdown[s] = {"count": 0, "hours": 0, "tickets": []}
-        status_breakdown[s]["count"] += 1
-        status_breakdown[s]["hours"] += est_hours
-        status_breakdown[s]["tickets"].append(key)
-    
-    # Round hours and sort by workflow order
-    for s in status_breakdown:
-        status_breakdown[s]["hours"] = round(status_breakdown[s]["hours"], 1)
-    
-    STATUS_ORDER = ["To Do", "Re-open", "In Progress", "Dev - Completed", "IN QA", "Done"]
-    def status_sort_key(item):
-        name = item[0]
-        # Case-insensitive match against the defined order
-        for i, ordered in enumerate(STATUS_ORDER):
-            if name.lower() == ordered.lower():
-                return i
-        return len(STATUS_ORDER)  # Unknown statuses go to end
-    status_breakdown = dict(sorted(status_breakdown.items(), key=status_sort_key))
-
-    # 4. Velocity Trend (Estimated vs Worked Hours)
+def get_velocity_trend(client, board_id, current_sprint, current_est, sp_field, lookback=5):
+    """Fetches past sprints and calculates estimation vs actual hours trend."""
     all_sprints = get_sprints(client, board_id, state="closed,active").get("values", [])
-    all_sprints = [s for s in all_sprints if s.get("startDate")]
-    all_sprints.sort(key=lambda x: x.get("startDate", ""), reverse=True)
+    all_sprints = sorted([s for s in all_sprints if s.get("startDate")], 
+                        key=lambda x: x.get("startDate", ""), reverse=True)
     
-    current_idx = -1
-    for i, s in enumerate(all_sprints):
-        if str(s["id"]) == str(sprint["id"]):
-            current_idx = i
-            break
-    
-    lookback = report_cfg.get("lookback", 5)
-    recent_sprints = all_sprints[max(0, current_idx): current_idx + lookback]
-    recent_sprints.reverse() 
-    
-    # Calculate total committed SP for the CURRENT sprint for the summary
-    summary_oe = sum((iss['fields'].get('timeoriginalestimate') or 0) for iss in work_items) / 3600.0
-    total_committed_sp = summary_oe
+    try:
+        curr_idx = next(i for i, s in enumerate(all_sprints) if str(s["id"]) == str(current_sprint["id"]))
+    except StopIteration:
+        curr_idx = 0
+        
+    recent = all_sprints[curr_idx : curr_idx + lookback]
+    recent.reverse()
 
     velocity_data = []
-    for s in recent_sprints:
-        if str(s["id"]) == str(sprint["id"]):
-            velocity_data.append({
-                "name": s["name"], 
-                "estimated": round(total_committed_sp, 1),
-                "worked": 0 # Will be updated after people_metrics
-            })
+    for s in recent:
+        if str(s["id"]) == str(current_sprint["id"]):
+            velocity_data.append({"name": s["name"], "estimated": round(current_est, 1), "worked": 0})
         else:
             past_issues = get_sprint_issues(client, s["id"])
-            p_est = 0
-            p_worked = 0
-            p_start = parser.parse(s["startDate"])
-            p_end = parser.parse(s["endDate"])
+            p_est, p_worked = 0, 0
+            p_start, p_end = parser.parse(s["startDate"]), parser.parse(s["endDate"])
             
             for iss in past_issues:
                 f = iss.get("fields", {})
                 raw_est = f.get(sp_field) or 0
-                if sp_field == "timeoriginalestimate":
-                    p_est += raw_est / 3600.0
-                else:
-                    p_est += raw_est
+                p_est += (raw_est / 3600.0 if sp_field == "timeoriginalestimate" else raw_est)
                 
-                wls = f.get("worklog", {}).get("worklogs", [])
-                for wl in wls:
+                for wl in f.get("worklog", {}).get("worklogs", []):
                     wl_date = parser.parse(wl.get("started"))
                     if wl_date.tzinfo and not p_start.tzinfo:
                         p_start = p_start.replace(tzinfo=wl_date.tzinfo)
                         p_end = p_end.replace(tzinfo=wl_date.tzinfo)
                     if p_start <= wl_date <= p_end:
                         p_worked += wl.get("timeSpentSeconds", 0) / 3600.0
-                        
-            velocity_data.append({
-                "name": s["name"], 
-                "estimated": round(p_est, 1),
-                "worked": round(p_worked, 1)
-            })
+            
+            velocity_data.append({"name": s["name"], "estimated": round(p_est, 1), "worked": round(p_worked, 1)})
+    return velocity_data
 
-    # Move people_metrics up before chart generation
-    # 5. People Metrics
-    # Pass raw_issues so it can detect all assignments/worklogs, 
-    # and sprint_id/dates for precise filtering.
-    people_metrics = aggregate_people_metrics(raw_issues, sprint["id"], sprint_start_date, sprint_end_date)
+def run():
+    config = load_config()
+    jira_cfg, report_cfg = config["jira"], config["report"]
+    client = JiraClient(jira_cfg["url"], jira_cfg["email"], jira_cfg["token"])
+    board_id = jira_cfg["board_id"]
+    sp_field = jira_cfg.get("story_points_field", "customfield_10016")
+
+    # 1. Fetch Sprint & Issues
+    sprint = get_sprint_info(client, board_id, jira_cfg.get("sprint_name"))
+    if not sprint:
+        print(f"Error: Could not find sprint on board {board_id}")
+        return
+
+    print(f"Generating report for: {sprint['name']} (ID: {sprint['id']})")
+    raw_issues = get_sprint_issues(client, sprint["id"])
+    work_items = filter_sprint_work_items(raw_issues, sprint["id"])
+
+    # 2. Process Metrics
+    m = calculate_metrics(work_items, sprint.get("startDateParsed"), sp_field)
     
-    # Update current sprint velocity data
+    # Finalize Status Breakdown Sorting
+    STATUS_ORDER = ["To Do", "Re-open", "In Progress", "Dev - Completed", "IN QA", "Done"]
+    sorted_breakdown = dict(sorted(m["status_breakdown"].items(), 
+        key=lambda x: next((i for i, s in enumerate(STATUS_ORDER) if x[0].lower() == s.lower()), len(STATUS_ORDER))))
+    for s in sorted_breakdown.values(): s["hours"] = round(s["hours"], 1)
+
+    # 3. People & Velocity
+    people_metrics = aggregate_people_metrics(raw_issues, sprint["id"], sprint.get("startDateParsed"), sprint.get("endDateParsed"))
+    total_worked = sum(p["hours"] for p in people_metrics.values())
+    
+    velocity_data = get_velocity_trend(client, board_id, sprint, m["total_orig_est"], sp_field, report_cfg.get("lookback", 5))
     for v in velocity_data:
-        if v["name"] == sprint["name"]:
-            # Recalculate estimated hours for the 86 items ONLY for the summary
-            # We already have work_items list from earlier
-            summary_oe = sum((iss['fields'].get('timeoriginalestimate') or 0) for iss in work_items) / 3600.0
-            v["estimated"] = round(summary_oe, 1)
-            v["worked"] = round(sum(p["hours"] for p in people_metrics.values()), 1)
+        if v["name"] == sprint["name"]: v["worked"] = round(total_worked, 1)
 
-    chart_base64 = generate_velocity_chart(velocity_data)
-
-    # 6. Burndown Chart
-    burndown_data = calculate_burndown(work_items, sprint_start_date, sprint_end_date)
-    burndown_base64 = generate_burndown_chart(burndown_data)
-
-    total_estimated_hours = sum((iss['fields'].get('timeoriginalestimate') or 0) for iss in work_items) / 3600.0
-    total_worked_hours = sum(p["hours"] for p in people_metrics.values())
-
+    # 4. Final Assembly
     sprint_metrics = {
-        "sprint_name": sprint["name"],
-        "sprint_goal": sprint_goal,
-        "start_date": sprint_start_date.strftime("%Y-%m-%d") if sprint_start_date else "N/A",
-        "end_date": sprint_end_date.strftime("%Y-%m-%d") if sprint_end_date else "N/A",
-        "total_issues": total_issues, # 86
-        "completed_issues": completed_issues,
-        "spillover_issues": spillover_issues,
-        "scope_added": scope_added,
-        "scope_added_keys": scope_added_keys,
-        "removed_issues": removed_issues,
-        "removed_keys": removed_keys,
-        "spillover_keys": spillover_keys,
-        "completion_rate": completion_rate,
-        "total_estimated_hours": round(total_estimated_hours, 1),
-        "total_worked_hours": round(total_worked_hours, 1),
-        "completed_story_points": round(total_completed_sp, 1),
-        "committed_story_points": round(total_estimated_hours, 1), # Same as total_estimated_hours
-        "bugs_reported": bugs_reported,
-        "bugs_reported_keys": bugs_reported_keys,
-        "bugs_resolved": bugs_resolved,
-        "bugs_resolved_keys": bugs_resolved_keys,
-        "high_priority_bugs": high_priority_bugs,
-        "high_priority_bugs_keys": high_priority_bugs_keys,
-        "blocked_issues": blocked_issues,
-        "blocked_keys": blocked_keys,
-        "production_incidents": production_incidents,
-        "production_incident_keys": production_incident_keys,
-        "ticket_status_map": ticket_status_map,
-        "status_breakdown": status_breakdown,
-        "velocity_chart_base64": chart_base64,
-        "burndown_chart_base64": burndown_base64,
-        "people_metrics": people_metrics,
-        "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "jira_url": jira_cfg["url"]
+        "sprint_name": sprint["name"], "sprint_goal": sprint.get("goal"),
+        "start_date": sprint.get("startDate", "N/A")[:10], "end_date": sprint.get("endDate", "N/A")[:10],
+        "total_issues": len(work_items), "completed_issues": m["completed_count"],
+        "spillover_issues": m["spillover_count"], "spillover_keys": m["spillover_keys"],
+        "scope_added": m["scope_added_count"], "scope_added_keys": m["scope_added_keys"],
+        "completion_rate": round((m["completed_count"] / len(work_items) * 100), 2) if work_items else 0,
+        "total_estimated_hours": round(m["total_orig_est"], 1), "total_worked_hours": round(total_worked, 1),
+        "completed_story_points": round(m["total_completed_sp"], 1),
+        "bugs_reported": m["bugs_reported"], "bugs_reported_keys": m["bugs_reported_keys"],
+        "bugs_resolved": m["bugs_resolved"], "bugs_resolved_keys": m["bugs_resolved_keys"],
+        "high_priority_bugs": m["high_priority_bugs"], "high_priority_bugs_keys": m["high_priority_keys"],
+        "blocked_issues": m["blocked_issues"], "blocked_keys": m["blocked_keys"],
+        "production_incidents": m["production_incidents"], "production_incident_keys": m["production_incident_keys"],
+        "ticket_status_map": m["status_map"], "status_breakdown": sorted_breakdown,
+        "velocity_chart_base64": generate_velocity_chart(velocity_data),
+        "burndown_chart_base64": generate_burndown_chart(calculate_burndown(work_items, sprint["startDateParsed"], sprint["endDateParsed"])),
+        "people_metrics": people_metrics, "jira_url": jira_cfg["url"],
+        "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
 
     report_slug = sprint["name"].lower().replace(" ", "_").replace("/", "_")
     sprint_output_dir = os.path.join(report_cfg["output_dir"], report_slug)
     os.makedirs(sprint_output_dir, exist_ok=True)
-
-    report_gen = SprintReportGenerator("templates", sprint_output_dir)
-    html_filename = f"{report_slug}.html"
-    excel_filename = f"{report_slug}.xlsx"
-
-    html_path = report_gen.generate_html(sprint_metrics, "report_template.html", html_filename)
-    excel_metrics = {k: v for k, v in sprint_metrics.items() if k not in ["people_metrics", "velocity_chart_base64"]}
-    excel_path = report_gen.generate_excel(
-        excel_metrics,
-        people_metrics,
-        excel_filename
-    )
-
-    print(f"Done! Reports generated:")
-    print(f"- HTML: {html_path}")
-    print(f"- Excel: {excel_path}")
+    
+    html_path = SprintReportGenerator("templates", sprint_output_dir).generate_html(sprint_metrics, "report_template.html", f"{report_slug}.html")
+    print(f"Done! Report generated:\n- HTML: {html_path}")
 
 if __name__ == "__main__":
     try:

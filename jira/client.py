@@ -4,11 +4,12 @@ from requests.auth import HTTPBasicAuth
 class JiraClient:
     def __init__(self, url, email, token):
         self.url = url.rstrip('/')
-        self.auth = HTTPBasicAuth(email, token)
-        self.headers = {
+        self.session = requests.Session()
+        self.session.auth = HTTPBasicAuth(email, token)
+        self.session.headers.update({
             "Accept": "application/json",
             "Content-Type": "application/json"
-        }
+        })
 
     def get(self, endpoint, params=None):
         # Handle cases where endpoint already starts with a slash
@@ -19,7 +20,7 @@ class JiraClient:
         else:
             url = f"{self.url}/rest/api/3/{endpoint}"
         
-        response = requests.get(url, headers=self.headers, auth=self.auth, params=params)
+        response = self.session.get(url, params=params)
         response.raise_for_status()
         return response.json()
 

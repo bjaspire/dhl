@@ -2,7 +2,7 @@ def get_sprint_issues(client, sprint_id):
     """Fetch all issues for a specific sprint."""
     issues = []
     start_at = 0
-    max_results = 50
+    max_results = 100
     
     while True:
         response = client.get_agile(f"sprint/{sprint_id}/issue", params={

@@ -15,8 +15,7 @@ def aggregate_people_metrics(issues, sprint_id=None, sprint_start_date=None, spr
             people_stats[name] = {
                 "hours": 0, "estimated_hours": 0, 
                 "active_issues": set(),   
-                "assigned_issues": set(), 
-                "comments": 0, "blockers": 0
+                "assigned_issues": set()
             }
         return people_stats[name]
 
@@ -74,27 +73,7 @@ def aggregate_people_metrics(issues, sprint_id=None, sprint_start_date=None, spr
                     stats["hours"] += hours
                     stats["active_issues"].add(issue_key)
 
-        # 4. Track comments — ALWAYS process for ALL issues (including sub-tasks)
-        comments = issue.get("comments")
-        if comments is None:
-            comments = fields.get("comment", {}).get("comments", [])
-            
-        for comm in comments:
-            author = comm.get("author", {}).get("displayName", "Unknown")
-            body_str = str(comm.get("body", "")).lower()
-            created_str = comm.get("created")
-            if created_str and sprint_start_date and sprint_end_date:
-                created = parser.parse(created_str)
-                s_start, s_end = sprint_start_date, sprint_end_date
-                if created.tzinfo and not s_start.tzinfo:
-                    s_start = s_start.replace(tzinfo=created.tzinfo)
-                    s_end = s_end.replace(tzinfo=created.tzinfo)
-                if s_start <= created <= s_end:
-                    stats = get_person_stats(author)
-                    stats["comments"] += 1
-                    stats["active_issues"].add(issue_key)
-                    if "blocker" in body_str or "blocked" in body_str:
-                        stats["blockers"] += 1
+
 
     # Finalize stats
     for name, stats in people_stats.items():
