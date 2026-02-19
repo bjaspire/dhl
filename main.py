@@ -5,10 +5,8 @@ from dateutil import parser
 from jira.client import JiraClient
 from jira.sprints import get_sprint_by_name, get_active_sprint, get_sprints
 from jira.issues import get_sprint_issues
-from jira.worklogs import get_issue_worklogs
-from jira.comments import get_issue_comments
 from reports.people_report import aggregate_people_metrics
-from reports.velocity import calculate_velocity, generate_velocity_chart
+from reports.velocity import generate_velocity_chart
 from reports.burndown import calculate_burndown, generate_burndown_chart
 from reports.sprint_report import SprintReportGenerator
 

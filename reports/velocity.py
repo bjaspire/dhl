@@ -2,15 +2,6 @@ import matplotlib.pyplot as plt
 import base64
 from io import BytesIO
 
-def calculate_velocity(sprints_data):
-    """
-    sprints_data: list of dicts with {'name': sprint_name, 'completed_sp': story_points}
-    """
-    if not sprints_data:
-        return 0
-    total_sp = sum(s['completed_sp'] for s in sprints_data)
-    return total_sp / len(sprints_data)
-
 def generate_velocity_chart(sprints_data, output_path=None):
     """Generates a line chart for velocity trend (Estimated vs Worked Hours)."""
     names = [s['name'] for s in sprints_data]
