@@ -218,7 +218,9 @@ def run():
     sprint_output_dir = os.path.join(report_cfg["output_dir"], report_slug)
     os.makedirs(sprint_output_dir, exist_ok=True)
     
-    html_path = SprintReportGenerator("templates", sprint_output_dir).generate_html(sprint_metrics, "report_template.html", f"{report_slug}.html")
+    report_gen = SprintReportGenerator("templates", sprint_output_dir)
+    html_path = report_gen.generate_html(sprint_metrics, "report_template.html", f"{report_slug}.html")
+    
     print(f"Done! Report generated:\n- HTML: {html_path}")
 
 if __name__ == "__main__":
