@@ -1,0 +1,77 @@
+name: Daily Sprint Report to Google Chat
+
+on:
+  schedule:
+    # Runs daily at 4:00 AM UTC (9:45 AM NPT)
+    - cron: '0 4 * * 1-5'
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  JIRA_URL: ${{ secrets.JIRA_URL }}
+  JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+  JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+  GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
+
+jobs:
+  generate-and-send:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install system dependencies (WeasyPrint)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev libcairo2
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate Sprint Report
+        run: python main.py
+
+      - name: Upload image to Google Chat
+        run: |
+          # Find the generated PNG
+          IMAGE_PATH=$(find output -name "*_people.png" | head -1)
+          
+          if [ -z "$IMAGE_PATH" ]; then
+            echo "No image found!"
+            exit 1
+          fi
+
+          echo "Uploading: $IMAGE_PATH"
+
+          # Upload image to a temporary host and get URL
+          # Google Chat webhooks accept cards with image URLs
+          # Option 1: Upload to imgur (public)
+          IMAGE_URL=$(curl -s -X POST "https://api.imgur.com/3/image" \
+            -H "Authorization: Client-ID ${{ secrets.IMGUR_CLIENT_ID }}" \
+            -F "image=@${IMAGE_PATH}" | python -c "import sys,json; print(json.load(sys.stdin)['data']['link'])")
+
+          echo "Image URL: $IMAGE_URL"
+
+          # Send card message to Google Chat
+          curl -s -X POST "$GCHAT_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"cards\": [{
+                \"header\": {
+                  \"title\": \"📊 Daily Sprint Report\",
+                  \"subtitle\": \"$(date +'%Y-%m-%d')\"
+                },
+                \"sections\": [{
+                  \"widgets\": [{
+                    \"image\": {
+                      \"imageUrl\": \"${IMAGE_URL}\"
+                    }
+                  }]
+                }]
+              }]
+            }"
