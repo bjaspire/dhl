@@ -580,7 +580,17 @@
                         <td style="font-weight: 600; color: var(--text-muted);">{{ stats.estimated_hours | jira_time |
                             safe }}
                         </td>
-                        <td style="font-weight: 600; color: var(--primary);">{{ stats.hours | jira_time | safe }}</td>
+                        <td style="font-weight: 600; color: var(--primary); vertical-align: top;">
+                            {{ stats.hours | jira_time | safe }}
+                            {% if stats.issue_hours %}
+                            <div class="issues-list" style="margin-top: 6px; font-weight: 600; font-size: 0.65rem;">
+                                {% for key, hrs in stats.issue_hours.items() %}
+                                <span style="color: var(--text-muted);">{{ key }}:</span> {{ hrs | round(1) }}h{% if not
+                                loop.last %}<br>{% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
                         <td>
                             {% set variance = (((stats.hours - stats.estimated_hours) / stats.estimated_hours) * 100) if
                             stats.estimated_hours > 0 else 0 %}

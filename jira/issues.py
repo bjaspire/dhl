@@ -10,7 +10,19 @@ def get_sprint_issues(client, sprint_id):
             "maxResults": max_results,
             "expand": "changelog,worklog,comment" 
         })
-        issues.extend(response.get("issues", []))
+        new_issues = response.get("issues", [])
+        
+        for issue in new_issues:
+            wl = issue.get("fields", {}).get("worklog", {})
+            if wl.get("total", 0) > len(wl.get("worklogs", [])):
+                try:
+                    full_wl = client.get(f"issue/{issue['key']}/worklog")
+                    if full_wl and "worklogs" in full_wl:
+                        issue["fields"]["worklog"] = full_wl
+                except Exception as e:
+                    print(f"Failed to fetch full worklogs for {issue['key']}: {e}")
+                    
+        issues.extend(new_issues)
         
         if len(issues) >= response.get("total", 0):
             break

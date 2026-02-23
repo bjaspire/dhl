@@ -148,10 +148,14 @@ def get_velocity_trend(client, board_id, current_sprint, current_est, sp_field, 
                 
                 for wl in f.get("worklog", {}).get("worklogs", []):
                     wl_date = parser.parse(wl.get("started"))
-                    if wl_date.tzinfo and not p_start.tzinfo:
-                        p_start = p_start.replace(tzinfo=wl_date.tzinfo)
-                        p_end = p_end.replace(tzinfo=wl_date.tzinfo)
-                    if p_start <= wl_date <= p_end:
+                    
+                    p_start_bound = p_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                    p_end_bound = p_end.replace(hour=23, minute=59, second=59, microsecond=999999)
+                    
+                    if wl_date.tzinfo and not p_start_bound.tzinfo:
+                        p_start_bound = p_start_bound.replace(tzinfo=wl_date.tzinfo)
+                        p_end_bound = p_end_bound.replace(tzinfo=wl_date.tzinfo)
+                    if p_start_bound <= wl_date <= p_end_bound:
                         p_worked += wl.get("timeSpentSeconds", 0) / 3600.0
             
             velocity_data.append({"name": s["name"], "estimated": round(p_est, 1), "worked": round(p_worked, 1)})

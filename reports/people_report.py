@@ -15,7 +15,8 @@ def aggregate_people_metrics(issues, sprint_id=None, sprint_start_date=None, spr
             people_stats[name] = {
                 "hours": 0, "estimated_hours": 0, 
                 "active_issues": set(),   
-                "assigned_issues": set()
+                "assigned_issues": set(),
+                "issue_hours": {}
             }
         return people_stats[name]
 
@@ -60,6 +61,11 @@ def aggregate_people_metrics(issues, sprint_id=None, sprint_start_date=None, spr
             if wl_date_str and sprint_start_date and sprint_end_date:
                 wl_date = parser.parse(wl_date_str)
                 s_start, s_end = sprint_start_date, sprint_end_date
+                
+                # Expand sprint start and end to cover whole days
+                s_start = s_start.replace(hour=0, minute=0, second=0, microsecond=0)
+                s_end = s_end.replace(hour=23, minute=59, second=59, microsecond=999999)
+                
                 if wl_date.tzinfo and not s_start.tzinfo:
                     s_start = s_start.replace(tzinfo=wl_date.tzinfo)
                     s_end = s_end.replace(tzinfo=wl_date.tzinfo)
@@ -72,6 +78,10 @@ def aggregate_people_metrics(issues, sprint_id=None, sprint_start_date=None, spr
                     stats = get_person_stats(author)
                     stats["hours"] += hours
                     stats["active_issues"].add(issue_key)
+                    
+                    if issue_key not in stats["issue_hours"]:
+                        stats["issue_hours"][issue_key] = 0
+                    stats["issue_hours"][issue_key] += hours
 
 
 

@@ -254,7 +254,17 @@
                     {% endfor %}
                 </td>
                 <td class="est">{{ stats.estimated_hours | jira_time_plain }}</td>
-                <td class="actual">{{ stats.hours | jira_time_plain }}</td>
+                <td class="actual">
+                    {{ stats.hours | jira_time_plain }}
+                    {% if stats.issue_hours %}
+                    <div style="font-size: 5.5pt; color: #64748b; font-weight: 600; margin-top: 4px; line-height: 1.4;">
+                        {% for key, hrs in stats.issue_hours.items() %}
+                        <span style="color: #94a3b8;">{{ key }}:</span> {{ hrs | round(1) }}h{% if not loop.last
+                        %}<br>{% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </td>
                 <td>
                     {% set variance = (((stats.hours - stats.estimated_hours) / stats.estimated_hours) * 100) if
                     stats.estimated_hours > 0 else 0 %}
