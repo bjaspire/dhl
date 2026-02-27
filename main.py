@@ -43,8 +43,8 @@ def filter_sprint_work_items(raw_issues, sprint_id):
         
         if in_sprint: active_in_sprint.append(iss)
 
-    # Work items: Non-subtasks and Non-Epics
-    return [iss for iss in active_in_sprint if not iss['fields'].get('issuetype', {}).get('subtask') and iss['fields'].get('issuetype', {}).get('name') != 'Epic']
+    # Work items: Including subtasks, but excluding Epics
+    return [iss for iss in active_in_sprint if iss['fields'].get('issuetype', {}).get('name') != 'Epic']
 
 def calculate_metrics(work_items, sprint_start_date, sp_field, sprint_state="active"):
     """Consolidated pass over work items to calculate all sprint and quality metrics."""
@@ -179,7 +179,7 @@ def run():
     work_items = filter_sprint_work_items(raw_issues, sprint["id"])
 
     # 2. Process Metrics
-    m = calculate_metrics(raw_issues, sprint.get("startDateParsed"), sp_field, sprint.get("state", "active"))
+    m = calculate_metrics(work_items, sprint.get("startDateParsed"), sp_field, sprint.get("state", "active"))
     
     # Finalize Status Breakdown Sorting — fetch board column order from Jira
     def get_board_status_order(client, board_id):
@@ -240,11 +240,11 @@ def run():
     sprint_metrics = {
         "sprint_name": sprint["name"], "sprint_goal": sprint.get("goal"),
         "start_date": sprint.get("startDate", "N/A")[:10], "end_date": sprint.get("endDate", "N/A")[:10],
-        "total_issues": len(raw_issues), "completed_issues": m["completed_count"],
+        "total_issues": len(work_items), "completed_issues": m["completed_count"],
         "spillover_issues": m["spillover_count"] if sprint.get("state") == "closed" else "N/A", 
         "spillover_keys": m["spillover_keys"],
         "scope_added": m["scope_added_count"], "scope_added_keys": m["scope_added_keys"],
-        "completion_rate": round((m["completed_count"] / len(raw_issues) * 100), 2) if raw_issues else 0,
+        "completion_rate": round((m["completed_count"] / len(work_items) * 100), 2) if work_items else 0,
         "total_estimated_hours": round(m["total_orig_est"], 1), "total_worked_hours": round(total_worked, 1),
         "completed_story_points": round(m["total_completed_sp"], 1),
         "bugs_reported": m["bugs_reported"], "bugs_reported_keys": m["bugs_reported_keys"],
