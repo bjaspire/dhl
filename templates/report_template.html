@@ -374,18 +374,31 @@
 
 <body>
     <div class="container">
-        {% set ticket_colors = [
-        {'border': '#00b8d9', 'bg': '#e6fcff', 'text': '#008da6'},
-        {'border': '#0065ff', 'bg': '#deebff', 'text': '#0747a6'},
-        {'border': '#ff5630', 'bg': '#ffebe6', 'text': '#bf2600'},
-        {'border': '#ffab00', 'bg': '#fff7e6', 'text': '#d46b08'},
-        {'border': '#6554c0', 'bg': '#eae6ff', 'text': '#403294'},
-        {'border': '#36b37e', 'bg': '#e3fcef', 'text': '#006644'},
-        {'border': '#ff8b00', 'bg': '#fff3e0', 'text': '#b35c00'},
-        {'border': '#e91e63', 'bg': '#fce4ec', 'text': '#880e4f'},
-        {'border': '#8993a4', 'bg': '#f4f5f7', 'text': '#42526e'},
-        {'border': '#00875a', 'bg': '#e3fcef', 'text': '#006644'}
-        ] %}
+        {% set status_color_map = {
+        'to do': {'border': '#1E90FF', 'bg': '#e8f4fd', 'text': '#1E90FF'},
+        'backlog': {'border': '#1E90FF', 'bg': '#e8f4fd', 'text': '#1E90FF'},
+        'open': {'border': '#1E90FF', 'bg': '#e8f4fd', 'text': '#1E90FF'},
+        're-open': {'border': '#800080', 'bg': '#f3e5f5', 'text': '#800080'},
+        'reopened': {'border': '#800080', 'bg': '#f3e5f5', 'text': '#800080'},
+        'in progress': {'border': '#FFD700', 'bg': '#fffde7', 'text': '#b8960f'},
+        'in development': {'border': '#FFD700', 'bg': '#fffde7', 'text': '#b8960f'},
+        'dev - in progress': {'border': '#FFD700', 'bg': '#fffde7', 'text': '#b8960f'},
+        'in review': {'border': '#FFD700', 'bg': '#fffde7', 'text': '#b8960f'},
+        'code review': {'border': '#FFD700', 'bg': '#fffde7', 'text': '#b8960f'},
+        'dev - completed': {'border': '#FFA500', 'bg': '#fff3e0', 'text': '#e67e00'},
+        'dev complete': {'border': '#FFA500', 'bg': '#fff3e0', 'text': '#e67e00'},
+        'in qa': {'border': '#FF69B4', 'bg': '#fce4ec', 'text': '#d6336c'},
+        'qa': {'border': '#FF69B4', 'bg': '#fce4ec', 'text': '#d6336c'},
+        'testing': {'border': '#FF69B4', 'bg': '#fce4ec', 'text': '#d6336c'},
+        'done': {'border': '#90EE90', 'bg': '#e8f5e9', 'text': '#2e7d32'},
+        'completed': {'border': '#90EE90', 'bg': '#e8f5e9', 'text': '#2e7d32'},
+        'resolved': {'border': '#90EE90', 'bg': '#e8f5e9', 'text': '#2e7d32'},
+        'closed': {'border': '#90EE90', 'bg': '#e8f5e9', 'text': '#2e7d32'},
+        'blocked': {'border': '#ff5630', 'bg': '#ffebe6', 'text': '#bf2600'},
+        'on hold': {'border': '#ffab00', 'bg': '#fff7e6', 'text': '#d46b08'},
+        'waiting': {'border': '#ffab00', 'bg': '#fff7e6', 'text': '#d46b08'}
+        } %}
+        {% set default_color = {'border': '#1E90FF', 'bg': '#e8f4fd', 'text': '#1E90FF'} %}
         {% set status_keys_list = status_breakdown.keys() | list %}
         <header>
             <div class="header-title">
@@ -465,8 +478,7 @@
                         <td><span class="badge badge-info">{{ bugs_reported }} Bugs</span></td>
                         <td>
                             <div class="issues-list">{% for key in bugs_reported_keys %}{% set st =
-                                ticket_status_map[key] %}{% set si = status_keys_list.index(st) if st in
-                                status_keys_list else 0 %}{% set c = ticket_colors[si % ticket_colors|length] %}<a
+                                ticket_status_map[key] %}{% set c = status_color_map.get(st|lower, default_color) %}<a
                                     href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
                                     style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %}, {% endif %}{%
                                 endfor %}</div>
@@ -477,8 +489,7 @@
                         <td>{{ bugs_resolved }}</td>
                         <td>
                             <div class="issues-list">{% for key in bugs_resolved_keys %}{% set st =
-                                ticket_status_map[key] %}{% set si = status_keys_list.index(st) if st in
-                                status_keys_list else 0 %}{% set c = ticket_colors[si % ticket_colors|length] %}<a
+                                ticket_status_map[key] %}{% set c = status_color_map.get(st|lower, default_color) %}<a
                                     href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
                                     style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %}, {% endif %}{%
                                 endfor %}</div>
@@ -490,9 +501,9 @@
                                 blocked_issues }} Issues</span></td>
                         <td>
                             <div class="issues-list">{% for key in blocked_keys %}{% set st = ticket_status_map[key]
-                                %}{% set si = status_keys_list.index(st) if st in status_keys_list else 0 %}{% set c =
-                                ticket_colors[si % ticket_colors|length] %}<a href="{{ jira_url }}/browse/{{ key }}"
-                                    target="_blank" class="issue-link" style="color: {{ c.text }};">{{ key }}</a>{% if
+                                %}{% set c = status_color_map.get(st|lower, default_color) %}<a
+                                    href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
+                                    style="color: {{ c.text }};">{{ key }}</a>{% if
                                 not loop.last %}, {% endif %}{% endfor %}</div>
                         </td>
                     </tr>
@@ -502,8 +513,7 @@
                             high_priority_bugs }}</td>
                         <td>
                             <div class="issues-list">{% for key in high_priority_bugs_keys %}{% set st =
-                                ticket_status_map[key] %}{% set si = status_keys_list.index(st) if st in
-                                status_keys_list else 0 %}{% set c = ticket_colors[si % ticket_colors|length] %}<a
+                                ticket_status_map[key] %}{% set c = status_color_map.get(st|lower, default_color) %}<a
                                     href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
                                     style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %}, {% endif %}{%
                                 endfor %}</div>
@@ -514,8 +524,7 @@
                         <td style="font-weight: 700;">{{ production_incidents }}</td>
                         <td>
                             <div class="issues-list">{% for key in production_incident_keys %}{% set st =
-                                ticket_status_map[key] %}{% set si = status_keys_list.index(st) if st in
-                                status_keys_list else 0 %}{% set c = ticket_colors[si % ticket_colors|length] %}<a
+                                ticket_status_map[key] %}{% set c = status_color_map.get(st|lower, default_color) %}<a
                                     href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
                                     style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %}, {% endif %}{%
                                 endfor %}</div>
@@ -529,7 +538,7 @@
             <h2>Status Distribution</h2>
             <div class="status-grid">
                 {% for status, info in status_breakdown.items() %}
-                {% set color = ticket_colors[loop.index0 % ticket_colors|length] %}
+                {% set color = status_color_map.get(status|lower, default_color) %}
                 <div class="status-item" style="border-left-color: {{ color.border }};">
                     <div class="status-header">
                         <span class="status-name">{{ status }}</span>
@@ -539,10 +548,10 @@
                     <div class="status-meta">
                         <span>⏱ {{ info.hours | jira_time | safe }}</span>
                     </div>
-                    <div class="status-tickets">{% for key in info.tickets %}{% set st = ticket_status_map[key] %}{% set
-                        si = status_keys_list.index(st) if st in status_keys_list else 0 %}{% set c = ticket_colors[si %
-                        ticket_colors|length] %}<a href="{{ jira_url }}/browse/{{ key }}" target="_blank"
-                            class="issue-link" style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %}, {%
+                    <div class="status-tickets">{% for key in info.tickets %}{% set st = ticket_status_map[key]
+                        %}{% set c = status_color_map.get(st|lower, default_color) %}<a
+                            href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
+                            style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %}, {%
                         endif %}{% endfor %}</div>
                 </div>
                 {% endfor %}
@@ -556,7 +565,7 @@
                     <tr>
                         <th>Team Member</th>
                         <th>Assigned</th>
-                        <th>Path (Keys)</th>
+                        <th>Tasks</th>
                         <th>Est (h)</th>
                         <th>Actual (h)</th>
                         <th>Var (%)</th>
@@ -571,10 +580,10 @@
                         </td>
                         <td>
                             <div class="issues-list">{% for key in stats.issues_keys %}{% set st =
-                                ticket_status_map.get(key, '') %}{% set si = status_keys_list.index(st) if st in
-                                status_keys_list else 0 %}{% set c = ticket_colors[si % ticket_colors|length] %}<a
-                                    href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
-                                    style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %}, {% endif %}{%
+                                ticket_status_map.get(key, '') %}{% set c = status_color_map.get(st|lower,
+                                default_color) %}<a href="{{ jira_url }}/browse/{{ key }}" target="_blank"
+                                    class="issue-link" style="color: {{ c.text }};">{{ key }}</a>{% if not loop.last %},
+                                {% endif %}{%
                                 endfor %}</div>
                         </td>
                         <td style="font-weight: 600; color: var(--text-muted);">{{ stats.estimated_hours | jira_time |
@@ -654,9 +663,9 @@
                     <td style="font-size: 0.85rem;">Items introduced mid-cycle</td>
                     <td>
                         <div class="issues-list">{% for key in scope_added_keys %}{% set st = ticket_status_map[key]
-                            %}{% set si = status_keys_list.index(st) if st in status_keys_list else 0 %}{% set c =
-                            ticket_colors[si % ticket_colors|length] %}<a href="{{ jira_url }}/browse/{{ key }}"
-                                target="_blank" class="issue-link" style="color: {{ c.text }};">{{ key }}</a>{% if not
+                            %}{% set c = status_color_map.get(st|lower, default_color) %}<a
+                                href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
+                                style="color: {{ c.text }};">{{ key }}</a>{% if not
                             loop.last %}, {% endif %}{% endfor %}</div>
                     </td>
                 </tr>
@@ -665,10 +674,10 @@
                     <td><span class="badge badge-info">{{ removed_issues }}</span></td>
                     <td style="font-size: 0.85rem;">Items de-prioritized</td>
                     <td>
-                        <div class="issues-list">{% for key in removed_keys %}{% set st = ticket_status_map[key] %}{%
-                            set si = status_keys_list.index(st) if st in status_keys_list else 0 %}{% set c =
-                            ticket_colors[si % ticket_colors|length] %}<a href="{{ jira_url }}/browse/{{ key }}"
-                                target="_blank" class="issue-link" style="color: {{ c.text }};">{{ key }}</a>{% if not
+                        <div class="issues-list">{% for key in removed_keys %}{% set st = ticket_status_map[key]
+                            %}{% set c = status_color_map.get(st|lower, default_color) %}<a
+                                href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
+                                style="color: {{ c.text }};">{{ key }}</a>{% if not
                             loop.last %}, {% endif %}{% endfor %}</div>
                     </td>
                 </tr>
@@ -677,10 +686,10 @@
                     <td><span class="badge badge-warning">{{ spillover_issues }}</span></td>
                     <td style="font-size: 0.85rem;">Transfer to next sprint</td>
                     <td>
-                        <div class="issues-list">{% for key in spillover_keys %}{% set st = ticket_status_map[key] %}{%
-                            set si = status_keys_list.index(st) if st in status_keys_list else 0 %}{% set c =
-                            ticket_colors[si % ticket_colors|length] %}<a href="{{ jira_url }}/browse/{{ key }}"
-                                target="_blank" class="issue-link" style="color: {{ c.text }};">{{ key }}</a>{% if not
+                        <div class="issues-list">{% for key in spillover_keys %}{% set st = ticket_status_map[key]
+                            %}{% set c = status_color_map.get(st|lower, default_color) %}<a
+                                href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link"
+                                style="color: {{ c.text }};">{{ key }}</a>{% if not
                             loop.last %}, {% endif %}{% endfor %}</div>
                     </td>
                 </tr>

@@ -27,29 +27,18 @@ def aggregate_people_metrics(issues, sprint_id=None, sprint_start_date=None, spr
         is_subtask = fields.get("issuetype", {}).get("subtask")
         raw_estimate = (fields.get("timeoriginalestimate") or 0) / 3600.0
         
-        # 1. Check Sprint Association (only for estimate/assignment gating)
-        in_sprint = True
-        if sprint_id:
-            sf = fields.get("customfield_10006") or fields.get("sprint")
-            in_sprint = False
-            if isinstance(sf, list):
-                for s in sf:
-                    if isinstance(s, dict) and s.get("id") == sprint_id: in_sprint = True; break
-            elif isinstance(sf, dict) and sf.get("id") == sprint_id:
-                in_sprint = True
-
-        # 2. Track assignment and Attribute Est (h) — only for sprint-associated items
-        if in_sprint:
-            assignee_data = fields.get("assignee")
-            assignee = assignee_data.get("displayName") if assignee_data else None
+        # Track assignment and Attribute Est (h) for ALL sprint issues
+        # (no sprint field check needed — get_sprint_issues already filters by sprint)
+        assignee_data = fields.get("assignee")
+        assignee = assignee_data.get("displayName") if assignee_data else None
+        
+        if assignee:
+            stats = get_person_stats(assignee)
+            stats["assigned_issues"].add(issue_key)
             
-            if assignee:
-                stats = get_person_stats(assignee)
-                stats["assigned_issues"].add(issue_key)
-                
-                # ONLY attribute estimate for work items (Non-subtask, Non-Epic)
-                if not is_subtask and issue_type != "Epic":
-                    stats["estimated_hours"] += raw_estimate
+            # ONLY attribute estimate for work items (Non-subtask, Non-Epic)
+            if not is_subtask and issue_type != "Epic":
+                stats["estimated_hours"] += raw_estimate
 
         # 3. Track worklogs — ALWAYS process for ALL issues (including sub-tasks)
         worklogs = issue.get("worklogs")

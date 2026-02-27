@@ -76,7 +76,7 @@ def calculate_metrics(work_items, sprint_start_date, sp_field, sprint_state="act
         sp = sp_raw / 3600.0 if sp_field == "timeoriginalestimate" else sp_raw
         
         # Status Parsing
-        is_done = status.lower() in ["done", "resolved", "closed", "completed", "dev complete", "in qa", "dev - completed"]
+        is_done = status.lower() == "done"
         metrics["status_map"][key] = status
         
         if is_done:
@@ -179,7 +179,7 @@ def run():
     work_items = filter_sprint_work_items(raw_issues, sprint["id"])
 
     # 2. Process Metrics
-    m = calculate_metrics(work_items, sprint.get("startDateParsed"), sp_field, sprint.get("state", "active"))
+    m = calculate_metrics(raw_issues, sprint.get("startDateParsed"), sp_field, sprint.get("state", "active"))
     
     # Finalize Status Breakdown Sorting — fetch board column order from Jira
     def get_board_status_order(client, board_id):
@@ -228,15 +228,23 @@ def run():
     for v in velocity_data:
         if v["name"] == sprint["name"]: v["worked"] = round(total_worked, 1)
 
+    # Build complete ticket_status_map from ALL raw issues (including subtasks)
+    # This ensures people contribution section shows correct status for every ticket
+    all_ticket_status_map = {}
+    for iss in raw_issues:
+        all_ticket_status_map[iss["key"]] = iss.get("fields", {}).get("status", {}).get("name", "Unknown")
+    # Merge with work_items status_map (work_items takes priority for status_breakdown consistency)
+    all_ticket_status_map.update(m["status_map"])
+
     # 4. Final Assembly
     sprint_metrics = {
         "sprint_name": sprint["name"], "sprint_goal": sprint.get("goal"),
         "start_date": sprint.get("startDate", "N/A")[:10], "end_date": sprint.get("endDate", "N/A")[:10],
-        "total_issues": len(work_items), "completed_issues": m["completed_count"],
+        "total_issues": len(raw_issues), "completed_issues": m["completed_count"],
         "spillover_issues": m["spillover_count"] if sprint.get("state") == "closed" else "N/A", 
         "spillover_keys": m["spillover_keys"],
         "scope_added": m["scope_added_count"], "scope_added_keys": m["scope_added_keys"],
-        "completion_rate": round((m["completed_count"] / len(work_items) * 100), 2) if work_items else 0,
+        "completion_rate": round((m["completed_count"] / len(raw_issues) * 100), 2) if raw_issues else 0,
         "total_estimated_hours": round(m["total_orig_est"], 1), "total_worked_hours": round(total_worked, 1),
         "completed_story_points": round(m["total_completed_sp"], 1),
         "bugs_reported": m["bugs_reported"], "bugs_reported_keys": m["bugs_reported_keys"],
@@ -244,7 +252,7 @@ def run():
         "high_priority_bugs": m["high_priority_bugs"], "high_priority_bugs_keys": m["high_priority_keys"],
         "blocked_issues": m["blocked_issues"], "blocked_keys": m["blocked_keys"],
         "production_incidents": m["production_incidents"], "production_incident_keys": m["production_incident_keys"],
-        "ticket_status_map": m["status_map"], "status_breakdown": sorted_breakdown,
+        "ticket_status_map": all_ticket_status_map, "status_breakdown": sorted_breakdown,
         "velocity_chart_base64": generate_velocity_chart(velocity_data),
         "burndown_chart_base64": generate_burndown_chart(calculate_burndown(work_items, sprint["startDateParsed"], sprint["endDateParsed"])),
         "people_metrics": people_metrics, "jira_url": jira_cfg["url"],
