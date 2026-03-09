@@ -42,7 +42,15 @@ def run():
             print("Error: Invalid date format. Please use YYYY-MM-DD.")
             return
     elif args.yesterday:
-        target_date = datetime.date.today() - datetime.timedelta(days=1)
+        today = datetime.date.today()
+        # Monday is 0, Tuesday is 1... Sunday is 6
+        if today.weekday() == 0:  # Monday
+            target_date = today - datetime.timedelta(days=3) # Get Friday
+        elif today.weekday() == 5 or today.weekday() == 6: # Saturday or Sunday
+            print("Today is the weekend. No daily report runs scheduled for yesterday.")
+            return
+        else:
+            target_date = today - datetime.timedelta(days=1)
     else:
         target_date = datetime.date.today()
         
@@ -114,6 +122,7 @@ def run():
 
     report_data = {
         "report_date": target_date_str,
+        "day": target_date.strftime("%A"),
         "generated_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "jira_url": jira_cfg["url"],
         "people_metrics": people_list,
