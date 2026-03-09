@@ -72,3 +72,26 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      
+      - name: Send Notification to Google Chat
+        env:
+          GCHAT_WEBHOOK_URL: "https://chat.googleapis.com/v1/spaces/AAQAa8kRZ08/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=UycdDqZ1JvTgl2Ue3dM4NujbSC4xZisldwPAxqLDf3M"
+          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          curl -s -X POST "$GCHAT_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"cards\": [{
+                \"header\": {
+                  \"title\": \"⏱️ Daily Hour Log Report\",
+                  \"subtitle\": \"Automated Pipeline\"
+                },
+                \"sections\": [{
+                  \"widgets\": [{
+                    \"textParagraph\": {
+                      \"text\": \"The daily hour log report has been generated successfully! <b><a href='${PAGE_URL}'>Click here to view the report</a></b>\"
+                    }
+                  }]
+                }]
+              }]
+            }"
