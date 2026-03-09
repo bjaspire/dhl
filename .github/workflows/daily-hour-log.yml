@@ -1,0 +1,58 @@
+name: Daily Hour Log Report
+
+on:
+  schedule:
+    # Runs daily at 3:15 AM UTC (9:00 AM NPT)
+    - cron: '15 3 * * *'
+  workflow_dispatch:
+    inputs:
+      board_id:
+        description: 'Jira Board ID'
+        required: false
+        default: '193'
+        type: string
+
+jobs:
+  generate-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate Daily Report
+        env:
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          JIRA_BOARD_ID: ${{ inputs.board_id || secrets.JIRA_BOARD_ID || vars.JIRA_BOARD_ID }}
+        run: python daily_report.py --yesterday
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'output/daily_reports/'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: generate-report
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

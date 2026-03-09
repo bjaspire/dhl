@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Report | {{ report_date }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0052cc;
+            --primary-light: #4c9aff;
+            --secondary: #0747a6;
+            --bg: #f4f6fa;
+            --card-bg: #ffffff;
+            --text-main: #1a1a2e;
+            --text-muted: #7a869a;
+            --success: #36b37e;
+            --warning: #ffab00;
+            --error: #ff5630;
+            --border: #e8ecf1;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+            --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.06);
+            --radius: 10px;
+            --space-xs: 6px;
+            --space-sm: 12px;
+            --space-md: 20px;
+            --space-lg: 28px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            line-height: 1.55;
+            padding: 28px 24px;
+            font-size: 0.85rem;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        /* ─── Header ─── */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: var(--space-lg);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
+        }
+
+        .header-title h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary);
+            letter-spacing: -0.025em;
+        }
+
+        .header-meta {
+            text-align: right;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.75rem;
+        }
+
+        /* ─── Summary Cards ─── */
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            margin-bottom: var(--space-lg);
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 18px 20px;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-1px);
+        }
+
+        .card-label {
+            font-size: 0.68rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .card-value {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            .summary-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ─── Section Headings ─── */
+        section h2 {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: var(--space-sm);
+            color: var(--secondary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        section h2::before {
+            content: '';
+            width: 3px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        /* ─── Tables ─── */
+        .data-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+
+        .data-table th {
+            background-color: #f7f8fa;
+            font-weight: 600;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .data-table tbody tr {
+            background: white;
+            transition: background 0.15s;
+        }
+
+        .data-table tbody tr:hover {
+            background: #fafbfc;
+        }
+
+        .issues-list {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            max-width: 450px;
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .task-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            padding: 4px 8px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        /* ─── Links ─── */
+        .issue-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.15s;
+        }
+
+        .issue-link:hover {
+            color: var(--secondary);
+            text-decoration: underline;
+        }
+
+        /* ─── Footer ─── */
+        footer {
+            margin-top: var(--space-lg);
+            text-align: center;
+            padding-top: 16px;
+            border-top: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .badge {
+            padding: 3px 10px;
+            border-radius: 99px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            background: #deebff;
+            color: #0747a6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <span style="color: var(--text-muted); font-weight: 600; font-size: 0.9rem;">DAILY HOUR LOG</span>
+                <h1>{{ report_date }}</h1>
+            </div>
+            <div class="header-meta">
+                <p>Generated: {{ generated_at }}</p>
+            </div>
+        </header>
+
+        <div class="summary-cards">
+            <div class="card">
+                <span class="card-label">Total Hours Logged</span>
+                <span class="card-value">{{ total_hours }}h</span>
+            </div>
+            <div class="card">
+                <span class="card-label">Active People</span>
+                <span class="card-value">{{ total_people }}</span>
+            </div>
+            <div class="card">
+                <span class="card-label">Tasks Worked On</span>
+                <span class="card-value">{{ total_tasks }}</span>
+            </div>
+        </div>
+
+        <section style="margin-bottom: 20px;">
+            <h2>People Contribution (Today)</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;">Team Member</th>
+                        <th style="width: 15%; text-align: center;">Tasks Today</th>
+                        <th style="width: 45%;">Task Breakdown (Key: Hours)</th>
+                        <th style="width: 20%; text-align: right;">Total Hours</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for person in people_metrics %}
+                    <tr>
+                        <td style="font-weight: 700;">{{ person.name }}</td>
+                        <td style="text-align: center;">
+                            <span class="badge">{{ person.tasks | length }}</span>
+                        </td>
+                        <td>
+                            <div class="issues-list">
+                                {% for key, hours in person.tasks.items() %}
+                                <div class="task-row">
+                                    <a href="{{ jira_url }}/browse/{{ key }}" target="_blank" class="issue-link">{{ key
+                                        }}</a>
+                                    <span style="font-weight: 600; color: var(--text-main);">{{ hours | round(1)
+                                        }}h</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td style="font-weight: 800; color: var(--primary); text-align: right; font-size: 1rem;">
+                            {{ person.total_hours | round(1) }}h
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    {% if not people_metrics %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; padding: 30px; color: var(--text-muted);">
+                            No work logged today.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+                <tfoot style="background: #f4f5f7; font-weight: 700;">
+                    <tr>
+                        <td colspan="3" style="text-align: right; padding-right: 20px;">Totals:</td>
+                        <td style="color: var(--primary); text-align: right; font-size: 1rem;">{{ total_hours }}h</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </section>
+
+    </div>
+
+    <footer>
+        <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+            <span>Atlassian Jira Agile™ Integration</span>
+            <span style="opacity: 0.5;">|</span>
+            <span>Automated Daily Reporting</span>
+        </div>
+        <p style="margin-top: 10px;">&copy; 2026 Bijaya Oli. All rights reserved.</p>
+    </footer>
+</body>
+
+</html>
