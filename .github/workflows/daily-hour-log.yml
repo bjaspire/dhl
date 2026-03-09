@@ -75,7 +75,7 @@ jobs:
       
       - name: Send Notification to Google Chat
         env:
-          GCHAT_WEBHOOK_URL: "https://chat.googleapis.com/v1/spaces/AAQAa8kRZ08/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=UycdDqZ1JvTgl2Ue3dM4NujbSC4xZisldwPAxqLDf3M"
+          GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
           PAGE_URL: ${{ steps.deployment.outputs.page_url }}
         run: |
           curl -s -X POST "$GCHAT_WEBHOOK_URL" \
