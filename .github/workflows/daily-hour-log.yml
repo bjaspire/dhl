@@ -11,6 +11,11 @@ on:
         required: false
         default: '193'
         type: string
+      target_date:
+        description: 'Target Date (YYYY-MM-DD)'
+        required: false
+        default: ''
+        type: string
 
 # Granular permissions required for GitHub Pages deployment
 permissions:
@@ -39,7 +44,13 @@ jobs:
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
           JIRA_BOARD_ID: ${{ inputs.board_id || secrets.JIRA_BOARD_ID || vars.JIRA_BOARD_ID }}
-        run: python daily_report.py --yesterday
+          TARGET_DATE: ${{ inputs.target_date }}
+        run: |
+          if [ -n "$TARGET_DATE" ]; then
+            python daily_report.py --date "$TARGET_DATE"
+          else
+            python daily_report.py --yesterday
+          fi
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
