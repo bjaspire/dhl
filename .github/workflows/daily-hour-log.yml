@@ -12,6 +12,12 @@ on:
         default: '193'
         type: string
 
+# Granular permissions required for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write      # to deploy to Pages and configure enablement
+  id-token: write   # to verify the deployment originates from an appropriate source
+
 jobs:
   generate-report:
     runs-on: ubuntu-latest
@@ -51,9 +57,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     needs: generate-report
     runs-on: ubuntu-latest
-    permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
