@@ -2,8 +2,8 @@ name: Daily Hour Log Report
 
 on:
   schedule:
-    # Runs Monday to Friday at 3:15 AM UTC (9:00 AM NPT)
-    - cron: '15 3 * * 1-5'
+    # Runs Monday to Friday at 3:45 AM UTC (9:30 AM NPT)
+    - cron: '45 3 * * 1-5'
   workflow_dispatch:
     inputs:
       board_id:
