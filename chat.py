@@ -114,7 +114,7 @@ def send_google_chat_notification(report_data, webhook_url):
             "topLabel": "Project Summary",
             "text": f'<b>GRAND TOTAL: {report_data["total_hours"]:.1f}h</b>',
             "startIcon": {
-                "iconUrl": "https://fonts.gstatic.com/s/i/googlematerialicons/emoji_events/v15/24px.svg"
+                "iconUrl": "https://fonts.gstatic.com/s/e/notoemoji/17.0/1f647/512.png=s64"
             }
         }
     })
@@ -126,7 +126,7 @@ def send_google_chat_notification(report_data, webhook_url):
                 "header": {
                     "title": "Project Work Log Summary",
                     "subtitle": f'Daily Task Breakdown ({report_data["report_date"]})',
-                    "imageUrl": "https://fonts.gstatic.com/s/i/googlematerialicons/assignment/v15/24px.svg"
+                    "imageUrl": "https://fonts.gstatic.com/s/e/notoemoji/17.0/1f646/512.png=s64"
                 },
                 "sections": [{"header": "Team Contributions", "widgets": widgets}]
             }
