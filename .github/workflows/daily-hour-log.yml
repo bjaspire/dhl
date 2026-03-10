@@ -17,14 +17,10 @@ on:
         default: ''
         type: string
 
-# Granular permissions required for GitHub Pages deployment
-permissions:
-  contents: read
-  pages: write      # to deploy to Pages and configure enablement
-  id-token: write   # to verify the deployment originates from an appropriate source
+# No special permissions needed since we are not deploying to Pages anymore
 
 jobs:
-  generate-report:
+  send-notification:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -38,41 +34,6 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
-      - name: Generate Daily Report
-        env:
-          JIRA_URL: ${{ secrets.JIRA_URL }}
-          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
-          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
-          JIRA_BOARD_ID: ${{ inputs.board_id || secrets.JIRA_BOARD_ID || vars.JIRA_BOARD_ID }}
-          TARGET_DATE: ${{ inputs.target_date }}
-        run: |
-          if [ -n "$TARGET_DATE" ]; then
-            python daily_report.py --date "$TARGET_DATE"
-          else
-            python daily_report.py --yesterday
-          fi
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'output/daily_reports/'
-
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    needs: generate-report
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-      
       - name: Send Notification to Google Chat
         env:
           GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
