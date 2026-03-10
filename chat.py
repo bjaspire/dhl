@@ -17,7 +17,7 @@ def load_config(config_path="config/config.yaml"):
                 "url": os.environ.get("JIRA_URL", ""),
                 "email": os.environ.get("JIRA_EMAIL", ""),
                 "token": os.environ.get("JIRA_TOKEN", ""),
-                "board_id": os.environ.get("JIRA_BOARD_ID", 193),
+                "board_id": os.environ.get("JIRA_BOARD_ID") or 193,
                 "webhook_url": os.environ.get("GCHAT_WEBHOOK_URL", "")
             }
         }

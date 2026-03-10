@@ -3,7 +3,7 @@ name: Daily Hour Log Report
 on:
   schedule:
     # Runs Monday to Friday at 3:45 AM UTC (9:30 AM NPT)
-    - cron: '45 3 * * 1-5'
+    - cron: '59 3 * * 1-5'
   workflow_dispatch:
     inputs:
       board_id:
@@ -40,7 +40,7 @@ jobs:
           JIRA_URL: ${{ secrets.JIRA_URL }}
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
-          JIRA_BOARD_ID: ${{ inputs.board_id || secrets.JIRA_BOARD_ID || vars.JIRA_BOARD_ID }}
+          JIRA_BOARD_ID: ${{ inputs.board_id || secrets.JIRA_BOARD_ID || vars.JIRA_BOARD_ID || '193' }}
         run: |
           if [ -z "$GCHAT_WEBHOOK_URL" ]; then
             echo "Warning: GCHAT_WEBHOOK_URL secret is not set. Skipping notification."
