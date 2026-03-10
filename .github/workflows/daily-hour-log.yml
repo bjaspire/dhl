@@ -76,22 +76,14 @@ jobs:
       - name: Send Notification to Google Chat
         env:
           GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
-          PAGE_URL: ${{ steps.deployment.outputs.page_url }}
+          JIRA_URL: ${{ secrets.JIRA_URL }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
+          JIRA_BOARD_ID: ${{ inputs.board_id || secrets.JIRA_BOARD_ID || vars.JIRA_BOARD_ID }}
         run: |
-          curl -s -X POST "$GCHAT_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"cards\": [{
-                \"header\": {
-                  \"title\": \"Hour Log Report\",
-                  \"subtitle\": \"Previous Day\"
-                },
-                \"sections\": [{
-                  \"widgets\": [{
-                    \"textParagraph\": {
-                      \"text\": \"The hour log report has been generated successfully! <b><a href='${PAGE_URL}'>Click here to view the report</a></b>\"
-                    }
-                  }]
-                }]
-              }]
-            }"
+          if [ -z "$GCHAT_WEBHOOK_URL" ]; then
+            echo "Warning: GCHAT_WEBHOOK_URL secret is not set. Skipping notification."
+            exit 0
+          fi
+          
+          python chat.py
