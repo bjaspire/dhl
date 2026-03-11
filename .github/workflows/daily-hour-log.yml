@@ -2,22 +2,24 @@ name: Daily Hour Log Report
 
 on:
   schedule:
+    # 9:35 AM NPT (03:50 UTC), Daily
+    - cron: '50 3 * * *'
     # 10:15 AM NPT (04:30 UTC), Monday to Friday
     - cron: '30 4 * * 1-5'
     # 11:30 AM NPT (05:45 UTC), Monday to Friday
     - cron: '15 3 * * 1-5'
-  # workflow_dispatch:
-  #   inputs:
-  #     board_id:
-  #       description: 'Jira Board ID'
-  #       required: false
-  #       default: '193'
-  #       type: string
-  #     target_date:
-  #       description: 'Target Date (YYYY-MM-DD)'
-  #       required: false
-  #       default: ''
-  #       type: string
+  workflow_dispatch:
+    inputs:
+      board_id:
+        description: 'Jira Board ID'
+        required: false
+        default: '193'
+        type: string
+      target_date:
+        description: 'Target Date (YYYY-MM-DD)'
+        required: false
+        default: ''
+        type: string
 
 # No special permissions needed since we are not deploying to Pages anymore
 
