@@ -58,7 +58,21 @@ class JiraClient:
             payload["expand"] = expand
         
         try:
-            return self.post("search/jql", payload).get("issues", [])
+            issues = self.post("search/jql", payload).get("issues", [])
+
+            # Handle worklog pagination (Jira only returns first 20 worklogs per issue)
+            if fields and "worklog" in fields:
+                for issue in issues:
+                    wl = issue.get("fields", {}).get("worklog", {})
+                    if wl.get("total", 0) > len(wl.get("worklogs", [])):
+                        try:
+                            full_wl = self.get(f"issue/{issue['key']}/worklog")
+                            if full_wl and "worklogs" in full_wl:
+                                issue["fields"]["worklog"] = full_wl
+                        except Exception as e:
+                            print(f"Failed to fetch full worklogs for {issue['key']}: {e}")
+
+            return issues
         except Exception as e:
             print(f"Error searching issues: {e}")
             return []
