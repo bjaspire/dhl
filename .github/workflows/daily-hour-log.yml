@@ -5,53 +5,62 @@ env:
 
 on:
   schedule:
-    # 9:35 AM NPT (03:50 UTC), Daily
-    - cron: '50 3 * * *'
-    # 10:15 AM NPT (04:30 UTC), Monday to Friday
-    - cron: '30 4 * * 1-5'
-    # 11:30 AM NPT (05:45 UTC), Monday to Friday
-    - cron: '15 3 * * 1-5'
-  workflow_dispatch:
-    inputs:
-      board_id:
-        description: 'Jira Board ID'
-        required: false
-        default: '193'
-        type: string
-      target_date:
-        description: 'Target Date (YYYY-MM-DD)'
-        required: false
-        default: ''
-        type: string
+    # Run every 5 minutes Monday–Friday
+    - cron: "*/5 * * * 1-5"
 
-# No special permissions needed since we are not deploying to Pages anymore
+  workflow_dispatch:
+
+concurrency:
+  group: hour-log-report
+  cancel-in-progress: false
 
 jobs:
   send-notification:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - name: Determine if job should run
+        id: scheduler
+        run: |
+          CURRENT_TIME=$(TZ=Asia/Kathmandu date +"%H:%M")
+          echo "Current Nepal Time: $CURRENT_TIME"
 
-      - name: Send Notification to Google Chat
+          TARGET_TIMES=("09:45" "09:50" "10:00")
+
+          RUN_JOB=false
+          for t in "${TARGET_TIMES[@]}"; do
+            if [[ "$CURRENT_TIME" == "$t" ]]; then
+              RUN_JOB=true
+            fi
+          done
+
+          echo "run_job=$RUN_JOB" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        if: steps.scheduler.outputs.run_job == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Send Notification
+        if: steps.scheduler.outputs.run_job == 'true'
         env:
           GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
           JIRA_URL: ${{ secrets.JIRA_URL }}
           JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
           JIRA_TOKEN: ${{ secrets.JIRA_TOKEN }}
-          JIRA_BOARD_ID: ${{ inputs.board_id || secrets.JIRA_BOARD_ID || vars.JIRA_BOARD_ID || '193' }}
+          JIRA_BOARD_ID: ${{ secrets.JIRA_BOARD_ID || '193' }}
         run: |
           if [ -z "$GCHAT_WEBHOOK_URL" ]; then
-            echo "Warning: GCHAT_WEBHOOK_URL secret is not set. Skipping notification."
+            echo "Webhook not configured. Skipping."
             exit 0
           fi
-          
+
           python chat.py
