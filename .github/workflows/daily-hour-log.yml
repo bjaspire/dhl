@@ -5,8 +5,8 @@ env:
 
 on:
   schedule:
-    # Run every 5 minutes Monday–Friday
-    - cron: "*/5 * * * 1-5"
+    # 10:12 AM NPT (UTC+5:45) = 04:27 UTC, Monday–Friday
+    - cron: "27 4 * * 1-5"
 
   workflow_dispatch:
 
@@ -26,31 +26,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Determine if job should run
-        id: scheduler
-        run: |
-          CURRENT_TIME=$(TZ=Asia/Kathmandu date +"%H:%M")
-          echo "Current Nepal Time: $CURRENT_TIME"
-
-          TARGET_TIMES=("09:45" "09:50" "10:00")
-
-          RUN_JOB=false
-          for t in "${TARGET_TIMES[@]}"; do
-            if [[ "$CURRENT_TIME" == "$t" ]]; then
-              RUN_JOB=true
-            fi
-          done
-
-          echo "run_job=$RUN_JOB" >> $GITHUB_OUTPUT
-
       - name: Install dependencies
-        if: steps.scheduler.outputs.run_job == 'true'
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Send Notification
-        if: steps.scheduler.outputs.run_job == 'true'
         env:
           GCHAT_WEBHOOK_URL: ${{ secrets.GCHAT_WEBHOOK_URL }}
           JIRA_URL: ${{ secrets.JIRA_URL }}
