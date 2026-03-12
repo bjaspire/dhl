@@ -4,7 +4,10 @@ on:
   schedule:
     # 06:00 UTC is 11:45 AM NPT (Nepal Standard Time)
     - cron: "0 6 * * 1-5"
+    #old time
     - cron: "42 5 * * 1-5"
+    #new time
+    - cron: "20 6 * * 1-5"
 
 jobs:
   my-job:
@@ -15,5 +18,5 @@ jobs:
 
       - name: Run my task
         run: |
-          echo "Running at 11:45 AM local time"
+          echo "Running at 11:45 AM local time  - cron: 20 6 * * 1-5"
           # Add your script execution here
