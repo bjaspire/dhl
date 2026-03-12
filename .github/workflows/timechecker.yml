@@ -1,0 +1,18 @@
+name: Scheduled Task at 11:45 AM
+
+on:
+  schedule:
+    # 06:00 UTC is 11:45 AM NPT (Nepal Standard Time)
+    - cron: "0 6 * * 1-5"
+
+jobs:
+  my-job:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run my task
+        run: |
+          echo "Running at 11:45 AM local time"
+          # Add your script execution here

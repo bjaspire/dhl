@@ -72,13 +72,36 @@ def get_report_data():
                 author = wl.get("author", {}).get("displayName", "Unknown")
                 hours = wl.get("timeSpentSeconds", 0) / 3600.0
                 
+                # Extract comment from ADF format or plain text
+                comment = "No comment provided"
+                comment_data = wl.get("comment")
+                if comment_data:
+                    # Check if it's the newer ADF format
+                    if isinstance(comment_data, dict) and comment_data.get("type") == "doc":
+                        texts = []
+                        for block in comment_data.get("content", []):
+                            if block.get("type") == "paragraph":
+                                for text_node in block.get("content", []):
+                                    if text_node.get("type") == "text":
+                                        texts.append(text_node.get("text", ""))
+                        if texts:
+                            comment = " ".join(texts)
+                    # Fallback to plain text string if older interface or string format
+                    elif isinstance(comment_data, str):
+                        comment = comment_data
+
                 if author not in people_stats:
                     people_stats[author] = {"name": author, "total_hours": 0.0, "tasks": {}}
                 
                 people_stats[author]["total_hours"] += hours
+                
+                # Store hours alongside comments mapping
                 if issue_key not in people_stats[author]["tasks"]:
-                    people_stats[author]["tasks"][issue_key] = 0.0
-                people_stats[author]["tasks"][issue_key] += hours
+                    people_stats[author]["tasks"][issue_key] = {"hours": 0.0, "comments": []}
+                
+                people_stats[author]["tasks"][issue_key]["hours"] += hours
+                if comment != "No comment provided":
+                     people_stats[author]["tasks"][issue_key]["comments"].append(comment)
 
     people_list = list(people_stats.values())
     people_list.sort(key=lambda x: x["name"])
@@ -98,9 +121,14 @@ def send_google_chat_notification(report_data, webhook_url):
     for person in report_data["people_metrics"]:
         tasks_text = []
         sorted_tasks = sorted(person["tasks"].items(), key=lambda x: x[0])
-        for task_key, hours in sorted_tasks:
+        for task_key, task_data in sorted_tasks:
             task_url = f"{jira_base_url}/browse/{task_key}"
-            tasks_text.append(f'• <a href="{task_url}">{task_key}</a> ({hours:.1f}h)')
+            hours = task_data["hours"]
+            
+            comments = task_data.get("comments", [])
+            comment_text = f" - <i>{'; '.join(comments)}</i>" if comments else ""
+            
+            tasks_text.append(f'• <a href="{task_url}">{task_key}</a> ({hours:.1f}h){comment_text}')
         
         tasks_html = "<br>".join(tasks_text)
         
